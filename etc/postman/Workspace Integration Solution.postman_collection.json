@@ -1,0 +1,34 @@
+{
+  "info": {
+    "_postman_id": "f644c878-9ca7-44f9-89b4-24e5d3a8f6c9",
+    "name": "Workspace Integration Solution",
+    "description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "55147261",
+    "_collection_link": "https://go.postman.co/collection/55147261-f644c878-9ca7-44f9-89b4-24e5d3a8f6c9?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Google",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/google",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "google"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
