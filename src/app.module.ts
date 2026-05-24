@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from './auth/auth.module';
+import { GoogleClientModule } from './google-client/google-client.module';
+import { UserModule } from './user/user.module';
+import { UserSettingsModule } from './user-settings/user-settings.module';
 
 @Module({
   imports: [
@@ -18,6 +21,9 @@ import { AuthModule } from './auth/auth.module';
       inject: [ConfigService],
     }),
     AuthModule,
+    GoogleClientModule,
+    UserModule,
+    UserSettingsModule,
   ],
 })
 export class AppModule {}

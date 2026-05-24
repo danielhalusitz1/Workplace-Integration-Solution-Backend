@@ -1,6 +1,6 @@
 import { IsString } from 'class-validator';
 
-export class AuthGoogleCallbackDTO {
+export class AuthGoogleDTO {
   @IsString()
   code: string;
 }

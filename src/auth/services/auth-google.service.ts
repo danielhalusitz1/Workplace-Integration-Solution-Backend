@@ -1,31 +1,62 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { OAuth2Client } from 'google-auth-library';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Credentials } from 'google-auth-library';
+import { GoogleClientService } from 'src/google-client/google-client.service';
 
 import { AuthGoogleLoginDTO } from '../dto/auth-google-logn.dto';
 
+type GoogleUser = {
+  id: string;
+  email: string;
+  name: string;
+  given_name: string;
+  family_name: string;
+};
 @Injectable()
 export class AuthGoogleService {
-  private oauthClient: OAuth2Client;
+  private readonly logger: Logger = new Logger('AuthGoogleService');
 
-  constructor(private readonly config: ConfigService) {
-    const clientId = this.config.getOrThrow<string>('GOOGLE_CLIENT_ID');
-
-    const clientSecret = this.config.getOrThrow<string>('GOOGLE_CLIENT_SECRET');
-
-    const redirectUri = this.config.getOrThrow<string>(
-      'GOOGLE_AUTH_REDIRECT_URI',
-    );
-    const base = this.config.getOrThrow<string>('BASE');
-    const port = this.config.getOrThrow<string>('PORT');
-
-    const redirectUrl = `${base}:${port}/${redirectUri}`;
-
-    this.oauthClient = new OAuth2Client(clientId, clientSecret, redirectUrl);
-  }
+  constructor(private readonly googleClientService: GoogleClientService) {}
 
   async login(payload: AuthGoogleLoginDTO) {
     const { code } = payload;
-    const getTokenRes = await this.oauthClient.getToken(code);
+    const client = this.googleClientService.create();
+
+    let tokens: Credentials | null = null;
+
+    try {
+      const getTokenRes = await client.getToken(code);
+
+      tokens = getTokenRes.tokens;
+    } catch (error) {
+      this.logger.error(error);
+      throw new BadRequestException('error.auth-google-service.login_failed');
+    }
+
+    client.setCredentials(tokens);
+
+    let user: GoogleUser | null = null;
+
+    try {
+      const userRes = await client.request<GoogleUser>({
+        url: 'https://www.googleapis.com/oauth2/v2/userinfo',
+      });
+
+      user = userRes.data;
+    } catch (error) {
+      this.logger.error(error);
+      throw new BadRequestException('error.auth-google-service.login_failed');
+    }
+
+    if (!user) {
+      throw new BadRequestException('error.auth-google-service.login_failed');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.given_name,
+      lastName: user.family_name,
+      refreshToken: tokens.refresh_token,
+    };
   }
 }
