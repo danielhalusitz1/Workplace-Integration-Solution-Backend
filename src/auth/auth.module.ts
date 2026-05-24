@@ -4,12 +4,13 @@ import { User, UserSchema } from 'src/auth/schemas/user.schema';
 
 import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
+import { AuthGoogleService } from './services/auth-google.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
-  providers: [AuthService],
+  providers: [AuthService, AuthGoogleService],
   controllers: [AuthController],
 })
 export class AuthModule {}
