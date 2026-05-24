@@ -1,4 +1,5 @@
 import { Schema, SchemaFactory } from '@nestjs/mongoose';
+
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 
 @Schema({ ...defaultSchemaOptions, collection: 'user' })
