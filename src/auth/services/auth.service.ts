@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import {
+  GlobalEvent,
+  GoogleAccessTokenRefreshedEvent,
+} from 'src/enum/global-event.enum';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
@@ -108,4 +113,19 @@ export class AuthService {
   }
 
   async createUser(payload: AuthCreateUserDTO) {}
+
+  @OnEvent(GlobalEvent.GOOGLE_ACCESS_TOKEN_REFRESHED)
+  onGoogleAccessTokenRefreshed(event: GoogleAccessTokenRefreshedEvent) {
+    const { accessToken, expiryDate, externalAccountId } = event.payload;
+
+    this.externalAccountModel.updateOne(
+      {
+        _id: new Types.ObjectId(externalAccountId),
+      },
+      {
+        expiryDate,
+        accessTokenEncrypted: encrypt(accessToken),
+      },
+    );
+  }
 }

@@ -1,11 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
 
 @Schema({ ...defaultSchemaOptions, collection: 'external-account' })
 export class ExternalAccount {
-  _id: string;
+  _id: Types.ObjectId;
 
   @Prop({ required: true })
   userId: string;
@@ -18,6 +19,12 @@ export class ExternalAccount {
 
   @Prop({ required: true })
   refreshTokenEncrypted: string;
+
+  @Prop({ required: true })
+  accessTokenEncrypted: string;
+
+  @Prop({ required: true })
+  expiryDate: number;
 
   createdAt: Date;
 
