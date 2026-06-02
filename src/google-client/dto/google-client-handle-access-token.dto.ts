@@ -1,7 +1,8 @@
 import { Type } from 'class-transformer';
 import { IsString } from 'class-validator';
 import { OAuth2Client } from 'google-auth-library';
-export class GoogleClientHandleRefreshTokenDTO {
+
+export class GoogleClientHandleAccessTokenDTO {
   @IsString()
   accessToken: string;
 

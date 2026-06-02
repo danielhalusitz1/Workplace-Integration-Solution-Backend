@@ -15,7 +15,7 @@ import {
 import { decrypt } from 'src/utils/encrypt';
 
 import { GoogleClientCreateDTO } from './dto/google-client-create.dto';
-import { GoogleClientHandleRefreshTokenDTO } from './dto/google-client-handle-refresh-token.dto';
+import { GoogleClientHandleAccessTokenDTO } from './dto/google-client-handle-access-token.dto';
 
 @Injectable()
 export class GoogleClientService {
@@ -80,7 +80,7 @@ export class GoogleClientService {
     }
   }
 
-  private async handleRefreshToken(payload: GoogleClientHandleRefreshTokenDTO) {
+  private async handleRefreshToken(payload: GoogleClientHandleAccessTokenDTO) {
     const { accessToken, client, externalAccountId } = payload;
     try {
       await client.getAccessToken();
