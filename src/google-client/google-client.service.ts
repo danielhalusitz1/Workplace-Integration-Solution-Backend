@@ -11,7 +11,7 @@ export class GoogleClientService {
   private readonly logger: Logger = new Logger('GoogleClientService');
   constructor(private readonly config: ConfigService) {}
 
-  create(payload?: GoogleClientCreateDTO) {
+  create(payload?: GoogleClientCreateDTO): OAuth2Client {
     const { refreshToken, accessToken, expiryDate } = payload ?? {};
     const clientId = this.config.getOrThrow<string>('GOOGLE_CLIENT_ID');
 

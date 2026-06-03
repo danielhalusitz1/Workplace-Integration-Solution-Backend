@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 
 @Schema({ ...defaultSchemaOptions, collection: 'user-settings' })
 export class UserSettings {
-  _id: string;
+  _id: Types.ObjectId;
 
   @Prop({ default: false })
   googleConnected: boolean;
@@ -18,3 +19,4 @@ export class UserSettings {
 }
 
 export const UserSettingsSchema = SchemaFactory.createForClass(UserSettings);
+export type UserSettingsDocument = HydratedDocument<UserSettings>;

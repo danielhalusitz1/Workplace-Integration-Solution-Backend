@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Credentials } from 'google-auth-library';
 import { GoogleClientService } from 'src/google-client/google-client.service';
 
@@ -19,6 +20,11 @@ export class AuthGoogleService {
   private readonly logger: Logger = new Logger('AuthGoogleService');
 
   constructor(private readonly googleClientService: GoogleClientService) {}
+
+  /*   @Cron(CronExpression.EVERY_10_MINUTES)
+  private async updateTokens() {
+
+  } */
 
   async login(
     payload: AuthGoogleLoginDTO,

@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 
 @Schema({ ...defaultSchemaOptions, collection: 'session' })
 export class Session {
-  _id: string;
+  _id: Types.ObjectId;
 
   @Prop({ required: true })
   userId: string;
@@ -27,3 +28,4 @@ export class Session {
 }
 
 export const SessionSchema = SchemaFactory.createForClass(Session);
+export type SessionDocument = HydratedDocument<Session>;

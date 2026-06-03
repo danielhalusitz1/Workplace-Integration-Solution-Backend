@@ -1,4 +1,5 @@
 import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { User } from 'src/decorators/user.decorator';
 import { AuthGuard } from 'src/guards/auth.guard';
@@ -12,7 +13,10 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Get('google')
-  async google(@Query() payload: AuthGoogleDTO, @Res() res: Response) {
+  async google(
+    @Query() payload: AuthGoogleDTO,
+    @Res() res: Response,
+  ): Promise<void> {
     return this.authService.google(payload, res);
   }
 
@@ -22,13 +26,16 @@ export class AuthController {
     @User() user: UserDTO,
     @Req() req: Request,
     @Res() res: Response,
-  ) {
+  ): Promise<void> {
     return this.authService.refresh(user, req, res);
   }
 
+  @ApiResponse({
+    type: UserDTO,
+  })
   @UseGuards(AuthGuard)
   @Get('me')
-  me(@User() user: UserDTO) {
+  me(@User() user: UserDTO): UserDTO {
     return user;
   }
 
@@ -38,13 +45,16 @@ export class AuthController {
     @User() user: UserDTO,
     @Req() req: Request,
     @Res() res: Response,
-  ) {
+  ): Promise<void> {
     return this.authService.logout({ user, res, req });
   }
 
   @UseGuards(AuthGuard)
   @Get('logout-everywhere')
-  async logoutEverywhere(@User() user: UserDTO, @Res() res: Response) {
+  async logoutEverywhere(
+    @User() user: UserDTO,
+    @Res() res: Response,
+  ): Promise<void> {
     return this.authService.logoutEverywhere({ user, res });
   }
 }

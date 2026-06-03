@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
@@ -33,5 +33,6 @@ export class ExternalAccount {
 
 export const ExternalAccountSchema =
   SchemaFactory.createForClass(ExternalAccount);
+export type ExternalAccountDocument = HydratedDocument<ExternalAccount>;
 
 ExternalAccountSchema.index({ userId: 1, type: 1 }, { unique: true });

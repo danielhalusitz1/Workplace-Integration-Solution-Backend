@@ -271,7 +271,7 @@ export class AuthService {
     };
   }
 
-  async logout(payload: AuthLogoutDTO) {
+  async logout(payload: AuthLogoutDTO): Promise<void> {
     const { user, req, res } = payload;
 
     const refreshTokenFromCookie = req.cookies['refresh-token'] as
@@ -286,7 +286,7 @@ export class AuthService {
     this.clearCookie({ res });
   }
 
-  async logoutEverywhere(payload: AuthLogoutEveryWhereDTO) {
+  async logoutEverywhere(payload: AuthLogoutEveryWhereDTO): Promise<void> {
     const { user, res } = payload;
 
     await this.sessionModel.deleteMany({ userId: user._id.toString() });
@@ -294,7 +294,7 @@ export class AuthService {
     this.clearCookie({ res });
   }
 
-  private setCookie(payload: AuthSetCookie) {
+  private setCookie(payload: AuthSetCookie): void {
     const {
       accessToken,
       accessExpiresAt,
@@ -321,14 +321,16 @@ export class AuthService {
     }
   }
 
-  private clearCookie(payload: AuthClearCookieDTO) {
+  private clearCookie(payload: AuthClearCookieDTO): void {
     const { res } = payload;
 
     res.clearCookie('access-token');
     res.clearCookie('refresh-token');
   }
 
-  async getActiveSession(payload: AuthGetActiveSessionDTO) {
+  async getActiveSession(
+    payload: AuthGetActiveSessionDTO,
+  ): Promise<Session | null> {
     const { accessToken, userId } = payload;
 
     const now = new Date();
