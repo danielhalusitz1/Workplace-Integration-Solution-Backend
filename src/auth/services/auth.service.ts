@@ -25,7 +25,7 @@ import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
 import { ExternalAccount } from '../schemas/external-account.schema';
-import { Session } from '../schemas/session.schema';
+import { Session, SessionDocument } from '../schemas/session.schema';
 import { AuthGoogleService } from './auth-google.service';
 
 @Injectable()
@@ -183,7 +183,7 @@ export class AuthService {
           );
         }
 
-        const userDTO = plainToInstance(UserDTO, user.toObject(), {
+        const userDTO = plainToInstance(UserDTO, user, {
           excludeExtraneousValues: true,
         });
         const tokens = await this.getTokens({ user: userDTO });
@@ -230,7 +230,7 @@ export class AuthService {
         refreshExpiresAt,
       },
       {
-        new: true,
+        returnDocument: 'after',
       },
     );
 
@@ -255,11 +255,15 @@ export class AuthService {
 
     const now = Date.now();
 
-    const accessToken = await this.jwtService.signAsync(user, {
+    const plainUser = {
+      ...user,
+    };
+
+    const accessToken = await this.jwtService.signAsync(plainUser, {
       expiresIn: '1d',
     });
 
-    const refreshToken = await this.jwtService.signAsync(user, {
+    const refreshToken = await this.jwtService.signAsync(plainUser, {
       expiresIn: '30d',
     });
 
@@ -317,7 +321,7 @@ export class AuthService {
     });
 
     if (redirect) {
-      res.redirect(this.configService.getOrThrow<string>('BASE'));
+      res.redirect(this.configService.getOrThrow<string>('WEB_BASE'));
     }
   }
 
@@ -330,7 +334,7 @@ export class AuthService {
 
   async getActiveSession(
     payload: AuthGetActiveSessionDTO,
-  ): Promise<Session | null> {
+  ): Promise<SessionDocument | null> {
     const { accessToken, userId } = payload;
 
     const now = new Date();

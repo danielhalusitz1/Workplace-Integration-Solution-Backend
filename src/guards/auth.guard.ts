@@ -5,9 +5,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { plainToInstance } from 'class-transformer';
 import type { Request } from 'express';
 import { AuthService } from 'src/auth/services/auth.service';
 import { UserDTO } from 'src/user/dto/user.dto';
+
+export interface RequestWithUser extends Request {
+  user: UserDTO;
+}
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -17,7 +22,7 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
 
     const accessToken = this.extractAccessTokenFromCookie(request);
 
@@ -27,24 +32,24 @@ export class AuthGuard implements CanActivate {
       );
     }
 
-    try {
-      const user = await this.jwtService.verifyAsync<UserDTO>(accessToken, {
-        secret: process.env.JWT_SECRET,
-      });
+    const user = await this.jwtService.verifyAsync<UserDTO>(accessToken, {
+      secret: process.env.JWT_SECRET,
+    });
 
-      const activeSession = await this.authService.getActiveSession({
-        accessToken,
-        userId: user._id,
-      });
+    const activeSession = await this.authService.getActiveSession({
+      accessToken,
+      userId: user._id,
+    });
 
-      if (!activeSession) {
-        throw new UnauthorizedException('error.auth-guard.session-not-exists');
-      }
-
-      return true;
-    } catch {
-      throw new UnauthorizedException('error.auth-guard.auth');
+    if (!activeSession) {
+      throw new UnauthorizedException('error.auth-guard.session-not-exists');
     }
+
+    request.user = plainToInstance(UserDTO, user, {
+      excludeExtraneousValues: true,
+    });
+
+    return true;
   }
 
   private extractAccessTokenFromCookie(request: Request): string | null {

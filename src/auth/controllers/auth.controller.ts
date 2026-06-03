@@ -15,7 +15,7 @@ export class AuthController {
   @Get('google')
   async google(
     @Query() payload: AuthGoogleDTO,
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     return this.authService.google(payload, res);
   }
@@ -25,7 +25,7 @@ export class AuthController {
   async refresh(
     @User() user: UserDTO,
     @Req() req: Request,
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     return this.authService.refresh(user, req, res);
   }
@@ -44,7 +44,7 @@ export class AuthController {
   async logout(
     @User() user: UserDTO,
     @Req() req: Request,
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     return this.authService.logout({ user, res, req });
   }
@@ -53,7 +53,7 @@ export class AuthController {
   @Get('logout-everywhere')
   async logoutEverywhere(
     @User() user: UserDTO,
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     return this.authService.logoutEverywhere({ user, res });
   }

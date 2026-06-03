@@ -17,11 +17,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base}}/refresh",
+              "raw": "{{base}}/auth/refresh",
               "host": [
                 "{{base}}"
               ],
               "path": [
+                "auth",
                 "refresh"
               ]
             }
@@ -34,11 +35,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base}}/me",
+              "raw": "{{base}}/auth/me",
               "host": [
                 "{{base}}"
               ],
               "path": [
+                "auth",
                 "me"
               ]
             }
@@ -51,11 +53,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base}}/logout",
+              "raw": "{{base}}/auth/logout",
               "host": [
                 "{{base}}"
               ],
               "path": [
+                "auth",
                 "logout"
               ]
             }
@@ -68,11 +71,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base}}/logout-everywhere",
+              "raw": "{{base}}/auth/logout-everywhere",
               "host": [
                 "{{base}}"
               ],
               "path": [
+                "auth",
                 "logout-everywhere"
               ]
             }
