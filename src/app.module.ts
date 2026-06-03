@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from './auth/auth.module';
@@ -13,9 +14,17 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
         uri:
-          config.get<string>('MONGODB_URI') +
+          config.getOrThrow<string>('MONGODB_URI') +
           '/' +
-          config.get<string>('MONGODB_DB'),
+          config.getOrThrow<string>('MONGODB_DB'),
+      }),
+      inject: [ConfigService],
+    }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      global: true,
+      useFactory: (config: ConfigService) => ({
+        secret: config.getOrThrow<string>('SECRET_KEY'),
       }),
       inject: [ConfigService],
     }),

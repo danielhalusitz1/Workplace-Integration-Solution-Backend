@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
@@ -7,6 +8,7 @@ import { UserSettingsService } from 'src/user-settings/services/user-settings.se
 import { encrypt } from 'src/utils/encrypt';
 
 import { AuthAuthUserDTO } from '../dto/auth-auth-user.dto';
+import { GetTokensDTO } from '../dto/auth-get-tokens.dto';
 import { AuthGoogleDTO, AuthGoogleResponseDTO } from '../dto/auth-google.dto';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
 import { ExternalAccount } from '../schemas/external-account.schema';
@@ -25,6 +27,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly userSettingsService: UserSettingsService,
     private readonly mongodbTransactionService: MongodbTransactionService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async google(payload: AuthGoogleDTO): Promise<AuthGoogleResponseDTO> {
@@ -88,17 +91,17 @@ export class AuthService {
         await this.externalAccountModel.updateOne(
           {
             userId: user._id.toString(),
-            foreignId,
             type: extednalAccountType,
           },
           {
-            refreshTokenEncrypted: refreshToken
-              ? encrypt(refreshToken)
-              : undefined,
+            foreignId,
+            ...(refreshToken
+              ? { refreshTokenEncrypted: encrypt(refreshToken) }
+              : {}),
             accessTokenEncrypted,
             expiryDate,
           },
-          session,
+          { session, upsert: true },
         );
       } else {
         if (!refreshToken) {
@@ -148,5 +151,11 @@ export class AuthService {
       accessToken: '',
       refreshToken: '',
     };
+  }
+
+  async getTokens(payload: GetTokensDTO) {
+    const { user } = payload;
+
+    //const accessToken = this.jwtService.
   }
 }

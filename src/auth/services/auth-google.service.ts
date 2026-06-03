@@ -34,7 +34,7 @@ export class AuthGoogleService {
       tokens = getTokenRes.tokens;
     } catch (error) {
       this.logger.error(error);
-      throw new BadRequestException('error.auth-google-service.login_failed');
+      throw new BadRequestException('error.auth-google-service.login-failed');
     }
 
     client.setCredentials(tokens);
@@ -49,11 +49,11 @@ export class AuthGoogleService {
       user = userRes.data;
     } catch (error) {
       this.logger.error(error);
-      throw new BadRequestException('error.auth-google-service.login_failed');
+      throw new BadRequestException('error.auth-google-service.login-failed');
     }
 
     if (!user) {
-      throw new BadRequestException('error.auth-google-service.login_failed');
+      throw new BadRequestException('error.auth-google-service.login-failed');
     }
 
     return {

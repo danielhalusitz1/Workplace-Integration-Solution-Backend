@@ -33,3 +33,5 @@ export class ExternalAccount {
 
 export const ExternalAccountSchema =
   SchemaFactory.createForClass(ExternalAccount);
+
+ExternalAccountSchema.index({ userId: 1, type: 1 }, { unique: true });
