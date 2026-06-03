@@ -1,29 +1,15 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OAuth2Client } from 'google-auth-library';
 import { ExternalAccount } from 'src/auth/schemas/external-account.schema';
-import {
-  GlobalEvent,
-  GoogleAccessTokenRefreshedEvent,
-} from 'src/enum/global-event.enum';
 import { decrypt } from 'src/utils/encrypt';
 
 import { GoogleClientCreateDTO } from './dto/google-client-create.dto';
-import { GoogleClientHandleAccessTokenDTO } from './dto/google-client-handle-access-token.dto';
 
 @Injectable()
 export class GoogleClientService {
   private readonly logger: Logger = new Logger('GoogleClientService');
-  constructor(
-    private readonly config: ConfigService,
-    private readonly eventEmitter: EventEmitter2,
-  ) {}
+  constructor(private readonly config: ConfigService) {}
 
   create(payload?: GoogleClientCreateDTO) {
     const { refreshToken, accessToken, expiryDate } = payload ?? {};
@@ -60,12 +46,6 @@ export class GoogleClientService {
 
     const client = this.create({ refreshToken, accessToken, expiryDate });
 
-    await this.handleRefreshToken({
-      accessToken,
-      externalAccountId: externalAccount._id.toString(),
-      client,
-    });
-
     try {
       return await fn(client);
     } catch (e) {
@@ -77,37 +57,6 @@ export class GoogleClientService {
         );
       }
       throw e;
-    }
-  }
-
-  private async handleRefreshToken(payload: GoogleClientHandleAccessTokenDTO) {
-    const { accessToken, client, externalAccountId } = payload;
-    try {
-      await client.getAccessToken();
-
-      const creds = client.credentials;
-
-      if (
-        creds.access_token &&
-        creds.expiry_date &&
-        creds.access_token !== accessToken
-      ) {
-        const event = new GoogleAccessTokenRefreshedEvent({
-          externalAccountId,
-          accessToken: creds.access_token,
-          expiryDate: creds.expiry_date,
-        });
-
-        this.eventEmitter.emit(
-          GlobalEvent.GOOGLE_ACCESS_TOKEN_REFRESHED,
-          event,
-        );
-      }
-    } catch (e) {
-      this.logger.error(e);
-      throw new BadRequestException(
-        'error.google-client-service.access-token-error',
-      );
     }
   }
 }

@@ -2,7 +2,10 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Credentials } from 'google-auth-library';
 import { GoogleClientService } from 'src/google-client/google-client.service';
 
-import { AuthGoogleLoginDTO } from '../dto/auth-google-logn.dto';
+import {
+  AuthGoogleLoginDTO,
+  AuthGoogleLoginResponseDTO,
+} from '../dto/auth-google-logn.dto';
 
 type GoogleUser = {
   id: string;
@@ -17,7 +20,9 @@ export class AuthGoogleService {
 
   constructor(private readonly googleClientService: GoogleClientService) {}
 
-  async login(payload: AuthGoogleLoginDTO) {
+  async login(
+    payload: AuthGoogleLoginDTO,
+  ): Promise<AuthGoogleLoginResponseDTO> {
     const { code } = payload;
     const client = this.googleClientService.create();
 
@@ -57,6 +62,8 @@ export class AuthGoogleService {
       firstName: user.given_name,
       lastName: user.family_name,
       refreshToken: tokens.refresh_token,
+      accessToken: tokens.access_token,
+      expiryDate: tokens.expiry_date,
     };
   }
 }

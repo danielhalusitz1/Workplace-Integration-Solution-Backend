@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from './auth/auth.module';
@@ -20,7 +19,6 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
       }),
       inject: [ConfigService],
     }),
-    EventEmitterModule.forRoot(),
     AuthModule,
     GoogleClientModule,
     UserModule,

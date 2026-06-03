@@ -8,25 +8,10 @@ export class UserCreateDTO extends OmitType(User, [
   'createdAt',
   'updatedAt',
 ]) {
-  @IsString()
-  @IsOptional()
   googleId?: string;
-
-  @IsString()
-  @IsOptional()
   microsoftId?: string;
-
-  @IsString()
   email: string;
-
-  @IsString()
-  @IsOptional()
   firstName?: string;
-
-  @IsString()
-  @IsOptional()
   lastName?: string;
-
-  @IsString()
   userSettingsId: string;
 }

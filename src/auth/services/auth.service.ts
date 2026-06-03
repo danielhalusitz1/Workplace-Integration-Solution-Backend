@@ -1,11 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import {
-  GlobalEvent,
-  GoogleAccessTokenRefreshedEvent,
-} from 'src/enum/global-event.enum';
+import { Model } from 'mongoose';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
@@ -51,9 +46,17 @@ export class AuthService {
           );
 
           const refreshToken = googleUser.refreshToken;
+          const accessToken = googleUser.accessToken;
+          const expiryDate = googleUser.expiryDate;
 
-          if (refreshToken) {
+          if (
+            refreshToken &&
+            accessToken &&
+            expiryDate !== null &&
+            expiryDate !== undefined
+          ) {
             const refreshTokenEncrypted = encrypt(refreshToken);
+            const accessTokenEncrypted = encrypt(accessToken);
 
             await this.externalAccountModel.updateOne(
               {
@@ -63,14 +66,27 @@ export class AuthService {
               },
               {
                 refreshTokenEncrypted,
+                accessTokenEncrypted,
+                expiryDate,
               },
               session,
+            );
+          } else {
+            throw new BadRequestException(
+              'error.auth-service.google.login_failed',
             );
           }
         } else {
           const refreshToken = googleUser.refreshToken;
+          const accessToken = googleUser.accessToken;
+          const expiryDate = googleUser.expiryDate;
 
-          if (!refreshToken) {
+          if (
+            !refreshToken ||
+            !accessToken ||
+            expiryDate === null ||
+            expiryDate === undefined
+          ) {
             throw new BadRequestException(
               'error.auth-service.google.login_failed',
             );
@@ -84,6 +100,7 @@ export class AuthService {
           );
 
           const refreshTokenEncrypted = encrypt(refreshToken);
+          const accessTokenEncrypted = encrypt(accessToken);
 
           user = await this.userService.create(
             {
@@ -101,6 +118,8 @@ export class AuthService {
               {
                 foreignId: googleUser.id,
                 refreshTokenEncrypted,
+                accessTokenEncrypted,
+                expiryDate,
                 userId: user?._id.toString(),
                 type: ExternalAccountType.GOOGLE,
               },
@@ -113,19 +132,4 @@ export class AuthService {
   }
 
   async createUser(payload: AuthCreateUserDTO) {}
-
-  @OnEvent(GlobalEvent.GOOGLE_ACCESS_TOKEN_REFRESHED)
-  onGoogleAccessTokenRefreshed(event: GoogleAccessTokenRefreshedEvent) {
-    const { accessToken, expiryDate, externalAccountId } = event.payload;
-
-    this.externalAccountModel.updateOne(
-      {
-        _id: new Types.ObjectId(externalAccountId),
-      },
-      {
-        expiryDate,
-        accessTokenEncrypted: encrypt(accessToken),
-      },
-    );
-  }
 }
