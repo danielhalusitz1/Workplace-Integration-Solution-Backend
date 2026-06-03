@@ -12,3 +12,10 @@ export class AuthAuthUserDTO {
   microsoftConnected?: boolean;
   extednalAccountType: ExternalAccountType;
 }
+
+export class AuthAuthUserResponseDTO {
+  accessToken: string;
+  accessExpiresAt: Date;
+  refreshToken: string;
+  refreshExpiresAt: Date;
+}

@@ -13,7 +13,7 @@ export class Session {
   accessToken: string;
 
   @Prop({ required: true })
-  refreshTokenEncrypted: string;
+  refreshToken: string;
 
   @Prop({ required: true })
   accessExpiresAt: Date;

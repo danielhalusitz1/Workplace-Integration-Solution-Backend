@@ -1,8 +1,15 @@
+import { Expose } from 'class-transformer';
+
 export class UserDTO {
+  @Expose()
   _id: string;
-  googleId?: string;
-  microsoftId?: string;
+
+  @Expose()
   email: string;
-  firstName: string;
-  lastName: string;
+
+  @Expose()
+  firstName?: string;
+
+  @Expose()
+  lastName?: string;
 }

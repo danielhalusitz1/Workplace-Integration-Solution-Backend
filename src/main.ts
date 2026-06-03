@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import * as express from 'express';
 import { join } from 'path';
 
@@ -23,6 +24,13 @@ async function bootstrap() {
       express.static(join(process.cwd(), 'documentation/compodoc')),
     );
   }
+
+  app.enableCors({
+    origin: process.env.WEB_BASE,
+    credentials: true,
+  });
+
+  app.use(cookieParser());
 
   await app.listen(process.env.PORT ?? 3000, process.env.HOST ?? '0.0.0.0');
 }
