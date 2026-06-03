@@ -30,33 +30,21 @@ export class AuthService {
   async google(payload: AuthGoogleDTO): Promise<AuthGoogleResponseDTO> {
     const googleUser = await this.authGoogleService.login(payload);
 
-    const user = await this.userService.findOneByFilters({
-      googleId: googleUser.id,
-    });
-
-    const refreshToken = googleUser.refreshToken;
     const accessToken = googleUser.accessToken;
     const expiryDate = googleUser.expiryDate;
 
-    if (
-      !refreshToken ||
-      !accessToken ||
-      expiryDate === null ||
-      expiryDate === undefined
-    ) {
-      throw new BadRequestException('error.auth-service.google.login_failed');
+    if (!accessToken || expiryDate === null || expiryDate === undefined) {
+      throw new BadRequestException('error.auth-service.google.auth-failed');
     }
 
     const tokens = await this.authAuthUser({
-      user,
       foreignId: googleUser.id,
       email: googleUser.email,
       firstName: googleUser.firstName,
       lastName: googleUser.lastName,
-      googleId: googleUser.id,
       googleConnected: true,
       accessToken,
-      refreshToken,
+      refreshToken: googleUser.refreshToken,
       expiryDate,
       extednalAccountType: ExternalAccountType.GOOGLE,
     });
@@ -70,9 +58,7 @@ export class AuthService {
       email,
       firstName,
       lastName,
-      googleId,
       googleConnected,
-      microsoftId,
       microsoftConnected,
       accessToken,
       refreshToken,
@@ -80,9 +66,10 @@ export class AuthService {
       extednalAccountType,
     } = payload;
 
-    let user = payload.user;
+    let user = await this.userService.findOneByFilters({
+      email,
+    });
 
-    const refreshTokenEncrypted = encrypt(refreshToken);
     const accessTokenEncrypted = encrypt(accessToken);
 
     await this.mongodbTransactionService.withTransaction(async (session) => {
@@ -105,13 +92,23 @@ export class AuthService {
             type: extednalAccountType,
           },
           {
-            refreshTokenEncrypted,
+            refreshTokenEncrypted: refreshToken
+              ? encrypt(refreshToken)
+              : undefined,
             accessTokenEncrypted,
             expiryDate,
           },
           session,
         );
       } else {
+        if (!refreshToken) {
+          throw new BadRequestException(
+            'error.auth-auth-user.registration-failed',
+          );
+        }
+
+        const refreshTokenEncrypted = encrypt(refreshToken);
+
         const userSettings = await this.userSettingsService.create(
           {
             ...(googleConnected !== undefined ? { googleConnected } : {}),
@@ -127,8 +124,6 @@ export class AuthService {
             userSettingsId: userSettings._id.toString(),
             firstName,
             lastName,
-            ...(googleId ? { googleId } : {}),
-            ...(microsoftId ? { microsoftId } : {}),
           },
           session,
         );
