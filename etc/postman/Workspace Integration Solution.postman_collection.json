@@ -12,17 +12,126 @@
       "name": "Auth",
       "item": [
         {
-          "name": "Google",
+          "name": "Refresh",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base}}/google",
+              "raw": "{{base}}/refresh",
               "host": [
                 "{{base}}"
               ],
               "path": [
-                "google"
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/me",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/logout",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout Everywhere",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/logout-everywhere",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "logout-everywhere"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Foreign",
+      "item": [
+        {
+          "name": "Google",
+          "item": []
+        },
+        {
+          "name": "Get code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://accounts.google.com/o/oauth2/v2/auth?client_id=932265249325-jaa5mstcjar4vqtotseodp6hvijs07rp.apps.googleusercontent.com&response_type=code&scope=openid email profile&access_type=offline&redirect_uri=http://127.0.0.1:3000/auth/google&prompt=consent",
+              "protocol": "https",
+              "host": [
+                "accounts",
+                "google",
+                "com"
+              ],
+              "path": [
+                "o",
+                "oauth2",
+                "v2",
+                "auth"
+              ],
+              "query": [
+                {
+                  "key": "client_id",
+                  "value": "932265249325-jaa5mstcjar4vqtotseodp6hvijs07rp.apps.googleusercontent.com"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid email profile"
+                },
+                {
+                  "key": "access_type",
+                  "value": "offline"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "http://127.0.0.1:3000/auth/google"
+                },
+                {
+                  "key": "prompt",
+                  "value": "consent"
+                }
               ]
             }
           },
