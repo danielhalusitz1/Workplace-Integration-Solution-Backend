@@ -7,4 +7,10 @@ export class AuthGoogleDTO {
   })
   @IsString()
   code: string;
+
+  @ApiProperty({
+    type: 'string',
+  })
+  @IsString()
+  state: string;
 }

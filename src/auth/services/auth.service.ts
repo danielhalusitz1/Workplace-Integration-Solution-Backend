@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { Model, Types } from 'mongoose';
+import { GoogleClientService } from 'src/google-client/google-client.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserService } from 'src/user/services/user.service';
@@ -18,6 +19,7 @@ import {
 } from '../dto/auth-auth-user.dto';
 import { AuthClearCookieDTO } from '../dto/auth-clear-cookie.dto';
 import { AuthGetActiveSessionDTO } from '../dto/auth-get-active-session.dto';
+import { AuthGetGoogleUrlDTO } from '../dto/auth-get-google-url.dto';
 import { GetTokensDTO, GetTokensResponseDTO } from '../dto/auth-get-tokens.dto';
 import { AuthGoogleDTO } from '../dto/auth-google.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
@@ -42,6 +44,7 @@ export class AuthService {
     private readonly userSettingsService: UserSettingsService,
     private readonly mongodbTransactionService: MongodbTransactionService,
     private readonly jwtService: JwtService,
+    private readonly googleClientService: GoogleClientService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
@@ -53,7 +56,63 @@ export class AuthService {
     });
   }
 
-  async google(payload: AuthGoogleDTO, res: Response): Promise<void> {
+  getGoogleUrl(payload: AuthGetGoogleUrlDTO) {
+    const { res } = payload;
+
+    const state = crypto.randomUUID();
+
+    res.cookie('google_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      maxAge: 5 * 60 * 1000,
+    });
+
+    const client = this.googleClientService.create();
+
+    const redirectUri = this.configService.getOrThrow<string>(
+      'GOOGLE_AUTH_REDIRECT_URI',
+    );
+    const base = this.configService.getOrThrow<string>('BASE');
+    const port = this.configService.getOrThrow<string>('PORT');
+
+    const redirectUrl = `${base}:${port}/${redirectUri}`;
+
+    const url = client.generateAuthUrl({
+      response_type: 'code',
+      scope: ['openid', 'email', 'profile'],
+      access_type: 'offline',
+      redirect_uri: redirectUrl,
+      prompt: 'consent',
+      state,
+    });
+
+    return url;
+  }
+
+  async google(
+    payload: AuthGoogleDTO,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    const googleStateFromCookie = req.cookies['google_state'] as
+      | string
+      | undefined;
+
+    if (
+      !payload.state ||
+      !googleStateFromCookie ||
+      payload.state !== googleStateFromCookie
+    ) {
+      throw new BadRequestException('error.auth-service.google.state-missing');
+    }
+
+    res.clearCookie('google_state', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+    });
+
     const googleUser = await this.authGoogleService.login(payload);
 
     const accessToken = googleUser.accessToken;

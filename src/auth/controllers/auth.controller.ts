@@ -12,12 +12,18 @@ import { AuthService } from '../services/auth.service';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Get('google-url')
+  getGoogleUrl(@Res({ passthrough: true }) res: Response) {
+    return this.authService.getGoogleUrl({ res });
+  }
+
   @Get('google')
   async google(
     @Query() payload: AuthGoogleDTO,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    return this.authService.google(payload, res);
+    return this.authService.google(payload, req, res);
   }
 
   @Get('refresh')
