@@ -6,10 +6,10 @@ import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 export class UserSettings {
   _id: string;
 
-  @Prop({ required: true })
+  @Prop({ default: false })
   googleConnected: boolean;
 
-  @Prop({ required: true })
+  @Prop({ default: false })
   microsoftConnected: boolean;
 
   createdAt: Date;

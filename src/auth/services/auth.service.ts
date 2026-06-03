@@ -6,8 +6,8 @@ import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { encrypt } from 'src/utils/encrypt';
 
-import { AuthCreateUserDTO } from '../dto/auth-create-user.dto';
-import { AuthGoogleDTO } from '../dto/auth-google.dto';
+import { AuthAuthUserDTO } from '../dto/auth-auth-user.dto';
+import { AuthGoogleDTO, AuthGoogleResponseDTO } from '../dto/auth-google.dto';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
 import { ExternalAccount } from '../schemas/external-account.schema';
 import { Session } from '../schemas/session.schema';
@@ -27,109 +27,131 @@ export class AuthService {
     private readonly mongodbTransactionService: MongodbTransactionService,
   ) {}
 
-  async google(payload: AuthGoogleDTO) {
+  async google(payload: AuthGoogleDTO): Promise<AuthGoogleResponseDTO> {
     const googleUser = await this.authGoogleService.login(payload);
 
-    let user = await this.userService.findOneByFilters({
+    const user = await this.userService.findOneByFilters({
       googleId: googleUser.id,
     });
 
-    const transactionResult = this.mongodbTransactionService.withTransaction(
-      async (session) => {
-        if (user) {
-          await this.userSettingsService.updateByFilters(
-            {
-              userSettingsId: user.userSettingsId,
-            },
-            { googleConnected: true },
-            session,
-          );
+    const refreshToken = googleUser.refreshToken;
+    const accessToken = googleUser.accessToken;
+    const expiryDate = googleUser.expiryDate;
 
-          const refreshToken = googleUser.refreshToken;
-          const accessToken = googleUser.accessToken;
-          const expiryDate = googleUser.expiryDate;
+    if (
+      !refreshToken ||
+      !accessToken ||
+      expiryDate === null ||
+      expiryDate === undefined
+    ) {
+      throw new BadRequestException('error.auth-service.google.login_failed');
+    }
 
-          if (
-            refreshToken &&
-            accessToken &&
-            expiryDate !== null &&
-            expiryDate !== undefined
-          ) {
-            const refreshTokenEncrypted = encrypt(refreshToken);
-            const accessTokenEncrypted = encrypt(accessToken);
+    const tokens = await this.authAuthUser({
+      user,
+      foreignId: googleUser.id,
+      email: googleUser.email,
+      firstName: googleUser.firstName,
+      lastName: googleUser.lastName,
+      googleId: googleUser.id,
+      googleConnected: true,
+      accessToken,
+      refreshToken,
+      expiryDate,
+      extednalAccountType: ExternalAccountType.GOOGLE,
+    });
 
-            await this.externalAccountModel.updateOne(
-              {
-                userId: user._id.toString(),
-                foreignId: googleUser.id,
-                type: ExternalAccountType.GOOGLE,
-              },
-              {
-                refreshTokenEncrypted,
-                accessTokenEncrypted,
-                expiryDate,
-              },
-              session,
-            );
-          } else {
-            throw new BadRequestException(
-              'error.auth-service.google.login_failed',
-            );
-          }
-        } else {
-          const refreshToken = googleUser.refreshToken;
-          const accessToken = googleUser.accessToken;
-          const expiryDate = googleUser.expiryDate;
-
-          if (
-            !refreshToken ||
-            !accessToken ||
-            expiryDate === null ||
-            expiryDate === undefined
-          ) {
-            throw new BadRequestException(
-              'error.auth-service.google.login_failed',
-            );
-          }
-          const userSettings = await this.userSettingsService.create(
-            {
-              googleConnected: true,
-              microsoftConnected: false,
-            },
-            session,
-          );
-
-          const refreshTokenEncrypted = encrypt(refreshToken);
-          const accessTokenEncrypted = encrypt(accessToken);
-
-          user = await this.userService.create(
-            {
-              email: googleUser.email,
-              userSettingsId: userSettings._id.toString(),
-              firstName: googleUser.firstName,
-              lastName: googleUser.lastName,
-              googleId: googleUser.id,
-            },
-            session,
-          );
-
-          await this.externalAccountModel.create(
-            [
-              {
-                foreignId: googleUser.id,
-                refreshTokenEncrypted,
-                accessTokenEncrypted,
-                expiryDate,
-                userId: user?._id.toString(),
-                type: ExternalAccountType.GOOGLE,
-              },
-            ],
-            { session },
-          );
-        }
-      },
-    );
+    return tokens;
   }
 
-  async createUser(payload: AuthCreateUserDTO) {}
+  async authAuthUser(payload: AuthAuthUserDTO) {
+    const {
+      foreignId,
+      email,
+      firstName,
+      lastName,
+      googleId,
+      googleConnected,
+      microsoftId,
+      microsoftConnected,
+      accessToken,
+      refreshToken,
+      expiryDate,
+      extednalAccountType,
+    } = payload;
+
+    let user = payload.user;
+
+    const refreshTokenEncrypted = encrypt(refreshToken);
+    const accessTokenEncrypted = encrypt(accessToken);
+
+    await this.mongodbTransactionService.withTransaction(async (session) => {
+      if (user) {
+        await this.userSettingsService.updateByFilters(
+          {
+            userSettingsId: user.userSettingsId,
+          },
+          {
+            ...(googleConnected !== undefined ? { googleConnected } : {}),
+            ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
+          },
+          session,
+        );
+
+        await this.externalAccountModel.updateOne(
+          {
+            userId: user._id.toString(),
+            foreignId,
+            type: extednalAccountType,
+          },
+          {
+            refreshTokenEncrypted,
+            accessTokenEncrypted,
+            expiryDate,
+          },
+          session,
+        );
+      } else {
+        const userSettings = await this.userSettingsService.create(
+          {
+            ...(googleConnected !== undefined ? { googleConnected } : {}),
+            ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
+          },
+
+          session,
+        );
+
+        user = await this.userService.create(
+          {
+            email,
+            userSettingsId: userSettings._id.toString(),
+            firstName,
+            lastName,
+            ...(googleId ? { googleId } : {}),
+            ...(microsoftId ? { microsoftId } : {}),
+          },
+          session,
+        );
+
+        await this.externalAccountModel.create(
+          [
+            {
+              foreignId,
+              refreshTokenEncrypted,
+              accessTokenEncrypted,
+              expiryDate,
+              userId: user?._id.toString(),
+              type: extednalAccountType,
+            },
+          ],
+          { session },
+        );
+      }
+    });
+
+    return {
+      accessToken: '',
+      refreshToken: '',
+    };
+  }
 }
