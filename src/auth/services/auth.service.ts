@@ -5,7 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserService } from 'src/user/services/user.service';
@@ -45,10 +45,10 @@ export class AuthService {
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  private removeExpiredSessions() {
+  private async removeExpiredSessions() {
     const now = new Date();
 
-    this.sessionModel.deleteMany({
+    await this.sessionModel.deleteMany({
       refreshExpiresAt: { $lte: now },
     });
   }
@@ -72,7 +72,7 @@ export class AuthService {
       accessToken,
       refreshToken: googleUser.refreshToken,
       expiryDate,
-      extednalAccountType: ExternalAccountType.GOOGLE,
+      externalAccountType: ExternalAccountType.GOOGLE,
     });
 
     this.setCookie({
@@ -98,7 +98,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       expiryDate,
-      extednalAccountType,
+      externalAccountType,
     } = payload;
 
     let user = await this.userService.findOneByFilters({
@@ -126,7 +126,7 @@ export class AuthService {
           await this.externalAccountModel.updateOne(
             {
               userId: user._id.toString(),
-              type: extednalAccountType,
+              type: externalAccountType,
             },
             {
               foreignId,
@@ -176,7 +176,7 @@ export class AuthService {
                 accessTokenEncrypted,
                 expiryDate,
                 userId: user?._id.toString(),
-                type: extednalAccountType,
+                type: externalAccountType,
               },
             ],
             { session },
@@ -188,13 +188,18 @@ export class AuthService {
         });
         const tokens = await this.getTokens({ user: userDTO });
 
-        await this.sessionModel.create({
-          userId: user._id.toString(),
-          accessToken: tokens.accessToken,
-          accessExpiresAt: tokens.accessExpiresAt,
-          refreshToken: tokens.refreshToken,
-          refreshExpiresAt: tokens.refreshExpiresAt,
-        });
+        await this.sessionModel.create(
+          [
+            {
+              userId: user._id.toString(),
+              accessToken: tokens.accessToken,
+              accessExpiresAt: tokens.accessExpiresAt,
+              refreshToken: tokens.refreshToken,
+              refreshExpiresAt: tokens.refreshExpiresAt,
+            },
+          ],
+          { session },
+        );
 
         return {
           accessToken: tokens.accessToken,
@@ -207,12 +212,38 @@ export class AuthService {
     return transactionResult;
   }
 
-  async refresh(user: UserDTO, req: Request, res: Response) {
+  async refresh(req: Request, res: Response) {
     const refreshTokenFromCookie = req.cookies['refresh-token'] as
       | string
       | undefined;
 
-    const tokens = await this.getTokens({ user });
+    if (!refreshTokenFromCookie) {
+      throw new BadRequestException(
+        'error.auth.refresh.refresh-token-not-found',
+      );
+    }
+
+    const oldSession = await this.sessionModel.findOne({
+      refreshToken: refreshTokenFromCookie,
+    });
+
+    if (!oldSession) {
+      throw new BadRequestException('error.auth.refresh.session-not-found');
+    }
+
+    const user = await this.userService.findOneByFilters({
+      _id: new Types.ObjectId(oldSession?.userId),
+    });
+
+    if (!user) {
+      throw new BadRequestException('error.auth.refresh.user-not-found');
+    }
+
+    const userDTO = plainToInstance(UserDTO, user, {
+      excludeExtraneousValues: true,
+    });
+
+    const tokens = await this.getTokens({ user: userDTO });
     const { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt } =
       tokens;
     const now = new Date();
@@ -235,7 +266,7 @@ export class AuthService {
     );
 
     if (!session) {
-      throw new BadRequestException('error.refresh.failed');
+      throw new BadRequestException('error.auth.refresh.session-not-found');
     }
 
     this.setCookie({
@@ -311,12 +342,14 @@ export class AuthService {
     res.cookie('access-token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
       expires: accessExpiresAt,
     });
 
     res.cookie('refresh-token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
       expires: refreshExpiresAt,
     });
 
@@ -328,8 +361,8 @@ export class AuthService {
   private clearCookie(payload: AuthClearCookieDTO): void {
     const { res } = payload;
 
-    res.clearCookie('access-token');
-    res.clearCookie('refresh-token');
+    res.clearCookie('access-token', { sameSite: 'none' });
+    res.clearCookie('refresh-token', { sameSite: 'none' });
   }
 
   async getActiveSession(

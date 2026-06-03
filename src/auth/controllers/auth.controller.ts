@@ -20,14 +20,12 @@ export class AuthController {
     return this.authService.google(payload, res);
   }
 
-  @UseGuards(AuthGuard)
   @Get('refresh')
   async refresh(
-    @User() user: UserDTO,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    return this.authService.refresh(user, req, res);
+    return this.authService.refresh(req, res);
   }
 
   @ApiResponse({

@@ -10,7 +10,7 @@ export class AuthAuthUserDTO {
   expiryDate: number;
   googleConnected?: boolean;
   microsoftConnected?: boolean;
-  extednalAccountType: ExternalAccountType;
+  externalAccountType: ExternalAccountType;
 }
 
 export class AuthAuthUserResponseDTO {
