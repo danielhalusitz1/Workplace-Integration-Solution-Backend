@@ -9,6 +9,7 @@ import { Model, Types } from 'mongoose';
 import { GoogleClientService } from 'src/google-client/google-client.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserDTO } from 'src/user/dto/user.dto';
+import { UserDocument } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { encrypt } from 'src/utils/encrypt';
@@ -160,15 +161,30 @@ export class AuthService {
       externalAccountType,
     } = payload;
 
-    let user = await this.userService.findOneByFilters({
-      email,
-    });
-
     const accessTokenEncrypted = encrypt(accessToken);
 
     const transactionResult =
       await this.mongodbTransactionService.withTransaction(async (session) => {
+        const externalAccount = await this.externalAccountModel.findOne(
+          {
+            foreignId,
+          },
+          { session },
+        );
+
+        let user: null | UserDocument = null;
+
+        if (externalAccount) {
+          user = await this.userService.findOneByFilters(
+            {
+              _id: new Types.ObjectId(externalAccount.userId),
+            },
+            { session },
+          );
+        }
+
         if (user) {
+          // check existing user with existing login mode
           await this.userSettingsService.updateByFilters(
             {
               userSettingsId: user.userSettingsId,
@@ -188,6 +204,7 @@ export class AuthService {
               type: externalAccountType,
             },
             {
+              email,
               foreignId,
               ...(refreshToken
                 ? { refreshTokenEncrypted: encrypt(refreshToken) }
@@ -198,48 +215,108 @@ export class AuthService {
             { session, upsert: true },
           );
         } else {
-          if (!refreshToken) {
-            throw new BadRequestException(
-              'error.auth-auth-user.registration-failed',
+          // check other external account exists
+          const otherExternalAccount = await this.externalAccountModel.findOne(
+            {
+              email,
+              type: { $ne: externalAccountType },
+            },
+            { session },
+          );
+
+          if (otherExternalAccount) {
+            user = await this.userService.findOneByFilters(
+              {
+                _id: new Types.ObjectId(otherExternalAccount.userId),
+              },
+              { session },
             );
           }
 
-          const refreshTokenEncrypted = encrypt(refreshToken);
+          if (user) {
+            if (!refreshToken) {
+              throw new BadRequestException(
+                'error.auth-auth-user.registration-failed',
+              );
+            }
 
-          const userSettings = await this.userSettingsService.create(
-            {
-              ...(googleConnected !== undefined ? { googleConnected } : {}),
-              ...(microsoftConnected !== undefined
-                ? { microsoftConnected }
-                : {}),
-            },
+            const refreshTokenEncrypted = encrypt(refreshToken);
 
-            session,
-          );
+            await this.externalAccountModel.create(
+              [
+                {
+                  foreignId,
+                  refreshTokenEncrypted,
+                  accessTokenEncrypted,
+                  expiryDate,
+                  userId: user._id.toString(),
+                  type: externalAccountType,
+                  email,
+                },
+              ],
+              { session },
+            );
 
-          user = await this.userService.create(
-            {
-              email,
-              userSettingsId: userSettings._id.toString(),
-              firstName,
-              lastName,
-            },
-            session,
-          );
-
-          await this.externalAccountModel.create(
-            [
+            await this.userSettingsService.updateByFilters(
               {
-                foreignId,
-                refreshTokenEncrypted,
-                accessTokenEncrypted,
-                expiryDate,
-                userId: user?._id.toString(),
-                type: externalAccountType,
+                userSettingsId: user.userSettingsId,
               },
-            ],
-            { session },
-          );
+              {
+                ...(googleConnected !== undefined ? { googleConnected } : {}),
+                ...(microsoftConnected !== undefined
+                  ? { microsoftConnected }
+                  : {}),
+              },
+              session,
+            );
+          } else {
+            // create new user if not exists
+            if (!refreshToken) {
+              throw new BadRequestException(
+                'error.auth-auth-user.registration-failed',
+              );
+            }
+
+            const refreshTokenEncrypted = encrypt(refreshToken);
+
+            const userSettings = await this.userSettingsService.create(
+              {
+                ...(googleConnected !== undefined ? { googleConnected } : {}),
+                ...(microsoftConnected !== undefined
+                  ? { microsoftConnected }
+                  : {}),
+              },
+              session,
+            );
+
+            const externalAccountMongoId = new Types.ObjectId();
+
+            user = await this.userService.create(
+              {
+                userSettingsId: userSettings._id.toString(),
+                firstName,
+                lastName,
+                primaryExternalAccount: externalAccountMongoId.toString(),
+              },
+              session,
+            );
+
+            await this.externalAccountModel.create(
+              [
+                {
+                  _id: externalAccountMongoId,
+                  foreignId,
+                  refreshTokenEncrypted,
+                  accessTokenEncrypted,
+                  expiryDate,
+                  userId: user._id.toString(),
+                  type: externalAccountType,
+                  email,
+                },
+              ],
+              { session },
+            );
+          }
         }
 
         const userDTO = plainToInstance(UserDTO, user, {

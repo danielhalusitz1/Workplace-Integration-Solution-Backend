@@ -7,9 +7,6 @@ import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 export class User {
   _id: Types.ObjectId;
 
-  @Prop({ required: true, unique: true, index: true })
-  email: string;
-
   @Prop()
   firstName?: string;
 
@@ -20,6 +17,11 @@ export class User {
     required: true,
   })
   userSettingsId: string;
+
+  @Prop({
+    required: true,
+  })
+  primaryExternalAccount: string;
 
   createdAt: Date;
 

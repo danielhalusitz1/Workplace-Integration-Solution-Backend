@@ -11,8 +11,11 @@ export class ExternalAccount {
   @Prop({ required: true })
   userId: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true, unique: true })
   foreignId: string;
+
+  @Prop({ required: true })
+  email: string;
 
   @Prop({ required: true, enum: ExternalAccountType })
   type: ExternalAccountType;

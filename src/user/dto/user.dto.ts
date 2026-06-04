@@ -15,12 +15,6 @@ export class UserDTO {
     type: 'string',
   })
   @Expose()
-  email: string;
-
-  @ApiProperty({
-    type: 'string',
-  })
-  @Expose()
   firstName?: string;
 
   @ApiProperty({
