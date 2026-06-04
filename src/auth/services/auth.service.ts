@@ -166,7 +166,7 @@ export class AuthService {
 
     await this.userSettingsService.updateByFilters(
       {
-        userSettingsId: user.userSettingsId,
+        _id: new Types.ObjectId(user.userSettingsId),
       },
       {
         ...(googleConnected !== undefined ? { googleConnected } : {}),
@@ -286,7 +286,7 @@ export class AuthService {
 
     await this.userSettingsService.updateByFilters(
       {
-        userSettingsId: user.userSettingsId,
+        _id: new Types.ObjectId(user.userSettingsId),
       },
       {
         ...(googleConnected !== undefined ? { googleConnected } : {}),
