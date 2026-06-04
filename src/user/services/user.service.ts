@@ -22,6 +22,6 @@ export class UserService {
     filters: QueryFilter<User>,
     options?: QueryOptions<User>,
   ): Promise<UserDocument | null> {
-    return await this.userModel.findOne(filters, options);
+    return await this.userModel.findOne(filters, null, options);
   }
 }

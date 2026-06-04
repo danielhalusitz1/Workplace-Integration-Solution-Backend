@@ -68,7 +68,7 @@ export class AuthService {
     res.cookie('google_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       maxAge: 5 * 60 * 1000,
     });
 
@@ -112,9 +112,7 @@ export class AuthService {
     }
 
     res.clearCookie('google_state', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
     });
 
     const googleUser = await this.authGoogleService.login(payload);
@@ -172,7 +170,7 @@ export class AuthService {
         ...(googleConnected !== undefined ? { googleConnected } : {}),
         ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
       },
-      session,
+      { session },
     );
 
     await this.externalAccountModel.updateOne(
@@ -292,7 +290,7 @@ export class AuthService {
         ...(googleConnected !== undefined ? { googleConnected } : {}),
         ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
       },
-      session,
+      { session },
     );
   }
 
@@ -307,6 +305,7 @@ export class AuthService {
           {
             foreignId,
           },
+          null,
           { session },
         );
 
@@ -333,6 +332,7 @@ export class AuthService {
               email,
               type: { $ne: externalAccountType },
             },
+            null,
             { session },
           );
 
@@ -511,14 +511,14 @@ export class AuthService {
     res.cookie('access-token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       expires: accessExpiresAt,
     });
 
     res.cookie('refresh-token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       expires: refreshExpiresAt,
     });
 
@@ -530,8 +530,8 @@ export class AuthService {
   private clearCookie(payload: AuthClearCookieDTO): void {
     const { res } = payload;
 
-    res.clearCookie('access-token', { sameSite: 'none' });
-    res.clearCookie('refresh-token', { sameSite: 'none' });
+    res.clearCookie('access-token', { sameSite: 'lax' });
+    res.clearCookie('refresh-token', { sameSite: 'lax' });
   }
 
   async getActiveSession(
