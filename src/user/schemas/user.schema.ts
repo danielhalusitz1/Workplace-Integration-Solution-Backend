@@ -18,11 +18,6 @@ export class User {
   })
   userSettingsId: string;
 
-  @Prop({
-    required: true,
-  })
-  primaryExternalAccount: string;
-
   createdAt: Date;
 
   updatedAt: Date;

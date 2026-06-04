@@ -279,24 +279,24 @@ export class AuthService {
 
             const refreshTokenEncrypted = encrypt(refreshToken);
 
+            const externalAccountMongoId = new Types.ObjectId();
+
             const userSettings = await this.userSettingsService.create(
               {
                 ...(googleConnected !== undefined ? { googleConnected } : {}),
                 ...(microsoftConnected !== undefined
                   ? { microsoftConnected }
                   : {}),
+                primaryExternalAccount: externalAccountMongoId.toString(),
               },
               session,
             );
-
-            const externalAccountMongoId = new Types.ObjectId();
 
             user = await this.userService.create(
               {
                 userSettingsId: userSettings._id.toString(),
                 firstName,
                 lastName,
-                primaryExternalAccount: externalAccountMongoId.toString(),
               },
               session,
             );

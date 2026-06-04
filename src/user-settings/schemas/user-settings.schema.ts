@@ -13,6 +13,11 @@ export class UserSettings {
   @Prop({ default: false })
   microsoftConnected: boolean;
 
+  @Prop({
+    required: true,
+  })
+  primaryExternalAccount: string;
+
   createdAt: Date;
 
   updatedAt: Date;
