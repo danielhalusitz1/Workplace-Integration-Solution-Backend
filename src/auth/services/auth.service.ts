@@ -19,13 +19,16 @@ import {
   AuthAuthUserResponseDTO,
 } from '../dto/auth-auth-user.dto';
 import { AuthClearCookieDTO } from '../dto/auth-clear-cookie.dto';
+import { AuthCreateUserDTO } from '../dto/auth-create-user.dto';
 import { AuthGetActiveSessionDTO } from '../dto/auth-get-active-session.dto';
 import { AuthGetGoogleUrlDTO } from '../dto/auth-get-google-url.dto';
 import { GetTokensDTO, GetTokensResponseDTO } from '../dto/auth-get-tokens.dto';
 import { AuthGoogleDTO } from '../dto/auth-google.dto';
+import { AuthLinkAccountDTO } from '../dto/auth-link-account.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
 import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
+import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
 import { ExternalAccount } from '../schemas/external-account.schema';
 import { Session, SessionDocument } from '../schemas/session.schema';
@@ -123,7 +126,7 @@ export class AuthService {
       throw new BadRequestException('error.auth-service.google.auth-failed');
     }
 
-    const tokens = await this.authAuthUser({
+    const tokens = await this.authUser({
       foreignId: googleUser.id,
       email: googleUser.email,
       firstName: googleUser.firstName,
@@ -145,23 +148,158 @@ export class AuthService {
     });
   }
 
-  private async authAuthUser(
-    payload: AuthAuthUserDTO,
-  ): Promise<AuthAuthUserResponseDTO> {
+  private async loginUser(
+    payload: AuthUpdateSettingsAndExternalAccountDTO,
+  ): Promise<void> {
     const {
-      foreignId,
-      email,
-      firstName,
-      lastName,
+      user,
+      session,
       googleConnected,
       microsoftConnected,
       accessToken,
-      refreshToken,
+      email,
       expiryDate,
       externalAccountType,
+      foreignId,
+      refreshToken,
     } = payload;
 
-    const accessTokenEncrypted = encrypt(accessToken);
+    await this.userSettingsService.updateByFilters(
+      {
+        userSettingsId: user.userSettingsId,
+      },
+      {
+        ...(googleConnected !== undefined ? { googleConnected } : {}),
+        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
+      },
+      session,
+    );
+
+    await this.externalAccountModel.updateOne(
+      {
+        userId: user._id.toString(),
+        type: externalAccountType,
+      },
+      {
+        email,
+        foreignId,
+        ...(refreshToken
+          ? { refreshTokenEncrypted: encrypt(refreshToken) }
+          : {}),
+        accessTokenEncrypted: encrypt(accessToken),
+        expiryDate,
+      },
+      { session },
+    );
+  }
+
+  private async createUser(payload: AuthCreateUserDTO): Promise<UserDocument> {
+    const {
+      session,
+      googleConnected,
+      microsoftConnected,
+      externalAccountType,
+      foreignId,
+      email,
+      accessToken,
+      expiryDate,
+      refreshToken,
+      firstName,
+      lastName,
+    } = payload;
+
+    if (!refreshToken) {
+      throw new BadRequestException('error.auth-auth-user.registration-failed');
+    }
+
+    const externalAccountMongoId = new Types.ObjectId();
+
+    const userSettings = await this.userSettingsService.create(
+      {
+        ...(googleConnected !== undefined ? { googleConnected } : {}),
+        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
+        primaryExternalAccount: externalAccountMongoId.toString(),
+      },
+      session,
+    );
+
+    const user = await this.userService.create(
+      {
+        userSettingsId: userSettings._id.toString(),
+        firstName,
+        lastName,
+      },
+      session,
+    );
+
+    await this.externalAccountModel.create(
+      [
+        {
+          _id: externalAccountMongoId,
+          foreignId,
+          refreshTokenEncrypted: encrypt(refreshToken),
+          accessTokenEncrypted: encrypt(accessToken),
+          expiryDate,
+          userId: user._id.toString(),
+          type: externalAccountType,
+          email,
+        },
+      ],
+      { session },
+    );
+
+    return user;
+  }
+
+  private async linkAccount(payload: AuthLinkAccountDTO) {
+    const {
+      refreshToken,
+      foreignId,
+      accessToken,
+      expiryDate,
+      user,
+      externalAccountType,
+      googleConnected,
+      microsoftConnected,
+      session,
+      email,
+    } = payload;
+
+    if (!refreshToken) {
+      throw new BadRequestException('error.auth-auth-user.registration-failed');
+    }
+
+    await this.externalAccountModel.create(
+      [
+        {
+          foreignId,
+          refreshTokenEncrypted: encrypt(refreshToken),
+          accessTokenEncrypted: encrypt(accessToken),
+          expiryDate,
+          userId: user._id.toString(),
+          type: externalAccountType,
+          email,
+        },
+      ],
+      { session },
+    );
+
+    await this.userSettingsService.updateByFilters(
+      {
+        userSettingsId: user.userSettingsId,
+      },
+      {
+        ...(googleConnected !== undefined ? { googleConnected } : {}),
+        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
+      },
+      session,
+    );
+  }
+
+  private async authUser(
+    payload: AuthAuthUserDTO,
+  ): Promise<AuthAuthUserResponseDTO> {
+    const { foreignId, email, externalAccountType } = payload;
 
     const transactionResult =
       await this.mongodbTransactionService.withTransaction(async (session) => {
@@ -184,38 +322,12 @@ export class AuthService {
         }
 
         if (user) {
-          // check existing user with existing login mode
-          await this.userSettingsService.updateByFilters(
-            {
-              userSettingsId: user.userSettingsId,
-            },
-            {
-              ...(googleConnected !== undefined ? { googleConnected } : {}),
-              ...(microsoftConnected !== undefined
-                ? { microsoftConnected }
-                : {}),
-            },
+          await this.loginUser({
+            ...payload,
+            user,
             session,
-          );
-
-          await this.externalAccountModel.updateOne(
-            {
-              userId: user._id.toString(),
-              type: externalAccountType,
-            },
-            {
-              email,
-              foreignId,
-              ...(refreshToken
-                ? { refreshTokenEncrypted: encrypt(refreshToken) }
-                : {}),
-              accessTokenEncrypted,
-              expiryDate,
-            },
-            { session, upsert: true },
-          );
+          });
         } else {
-          // check other external account exists
           const otherExternalAccount = await this.externalAccountModel.findOne(
             {
               email,
@@ -234,88 +346,9 @@ export class AuthService {
           }
 
           if (user) {
-            if (!refreshToken) {
-              throw new BadRequestException(
-                'error.auth-auth-user.registration-failed',
-              );
-            }
-
-            const refreshTokenEncrypted = encrypt(refreshToken);
-
-            await this.externalAccountModel.create(
-              [
-                {
-                  foreignId,
-                  refreshTokenEncrypted,
-                  accessTokenEncrypted,
-                  expiryDate,
-                  userId: user._id.toString(),
-                  type: externalAccountType,
-                  email,
-                },
-              ],
-              { session },
-            );
-
-            await this.userSettingsService.updateByFilters(
-              {
-                userSettingsId: user.userSettingsId,
-              },
-              {
-                ...(googleConnected !== undefined ? { googleConnected } : {}),
-                ...(microsoftConnected !== undefined
-                  ? { microsoftConnected }
-                  : {}),
-              },
-              session,
-            );
+            await this.linkAccount({ ...payload, session, user });
           } else {
-            // create new user if not exists
-            if (!refreshToken) {
-              throw new BadRequestException(
-                'error.auth-auth-user.registration-failed',
-              );
-            }
-
-            const refreshTokenEncrypted = encrypt(refreshToken);
-
-            const externalAccountMongoId = new Types.ObjectId();
-
-            const userSettings = await this.userSettingsService.create(
-              {
-                ...(googleConnected !== undefined ? { googleConnected } : {}),
-                ...(microsoftConnected !== undefined
-                  ? { microsoftConnected }
-                  : {}),
-                primaryExternalAccount: externalAccountMongoId.toString(),
-              },
-              session,
-            );
-
-            user = await this.userService.create(
-              {
-                userSettingsId: userSettings._id.toString(),
-                firstName,
-                lastName,
-              },
-              session,
-            );
-
-            await this.externalAccountModel.create(
-              [
-                {
-                  _id: externalAccountMongoId,
-                  foreignId,
-                  refreshTokenEncrypted,
-                  accessTokenEncrypted,
-                  expiryDate,
-                  userId: user._id.toString(),
-                  type: externalAccountType,
-                  email,
-                },
-              ],
-              { session },
-            );
+            user = await this.createUser({ ...payload, session });
           }
         }
 
