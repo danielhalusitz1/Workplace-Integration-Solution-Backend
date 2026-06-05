@@ -103,10 +103,12 @@ export class AuthService {
       | string
       | undefined;
 
+    const nodeEnv = this.configService.getOrThrow<string>('NODE_ENV');
     if (
-      !payload.state ||
-      !googleStateFromCookie ||
-      payload.state !== googleStateFromCookie
+      nodeEnv !== 'development' &&
+      (!payload.state ||
+        !googleStateFromCookie ||
+        payload.state !== googleStateFromCookie)
     ) {
       throw new BadRequestException('error.auth-service.google.state-missing');
     }
