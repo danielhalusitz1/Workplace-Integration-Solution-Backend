@@ -56,7 +56,7 @@ export class AuthMicrosoftService {
       client_secret: clientSecret,
       grant_type: 'authorization_code',
       code,
-      redirectUri: this.getRedirectUrl(),
+      redirect_uri: this.getRedirectUrl(),
     });
 
     try {
@@ -69,8 +69,6 @@ export class AuthMicrosoftService {
           },
         },
       );
-
-      console.log(tokenResponse.data);
 
       const { access_token, expires_in, id_token, refresh_token } =
         tokenResponse.data;
