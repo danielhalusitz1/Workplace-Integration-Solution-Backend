@@ -29,9 +29,7 @@ export class AuthGuard implements CanActivate {
     const accessToken = this.extractAccessTokenFromCookie(request);
 
     if (!accessToken) {
-      throw new UnauthorizedException(
-        'error.auth-guard.access-token-not-found',
-      );
+      throw new UnauthorizedException('error.auth-guard.token-not-found');
     }
 
     const user = await this.jwtService.verifyAsync<UserDTO>(accessToken, {
@@ -44,7 +42,7 @@ export class AuthGuard implements CanActivate {
     });
 
     if (!activeSession) {
-      throw new UnauthorizedException('error.auth-guard.session-not-exists');
+      throw new UnauthorizedException('error.auth-guard.session-not-found');
     }
 
     request.user = plainToInstance(UserDTO, user, {

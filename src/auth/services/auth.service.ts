@@ -155,7 +155,7 @@ export class AuthService {
     const expiryDate = microsoftUser.expiryDate;
 
     if (!accessToken || expiryDate === null || expiryDate === undefined) {
-      throw new BadRequestException('error.auth-service.google.auth-failed');
+      throw new BadRequestException('error.auth-service.microsoft.auth-failed');
     }
 
     const tokens = await this.authUser({
@@ -241,7 +241,9 @@ export class AuthService {
     } = payload;
 
     if (!refreshToken) {
-      throw new BadRequestException('error.auth-auth-user.registration-failed');
+      throw new BadRequestException(
+        'error.auth-service.auth-user.registration-failed',
+      );
     }
 
     const externalAccountMongoId = new Types.ObjectId();
@@ -298,7 +300,9 @@ export class AuthService {
     } = payload;
 
     if (!refreshToken) {
-      throw new BadRequestException('error.auth-auth-user.registration-failed');
+      throw new BadRequestException(
+        'error.auth-service.auth-user.link-account-failed',
+      );
     }
 
     await this.externalAccountModel.create(
@@ -422,7 +426,7 @@ export class AuthService {
 
     if (!refreshTokenFromCookie) {
       throw new BadRequestException(
-        'error.auth.refresh.refresh-token-not-found',
+        'error.auth-service.refresh.token-not-found',
       );
     }
 
@@ -431,7 +435,9 @@ export class AuthService {
     });
 
     if (!oldSession) {
-      throw new BadRequestException('error.auth.refresh.session-not-found');
+      throw new BadRequestException(
+        'error.auth-service.refresh.session-not-found',
+      );
     }
 
     const user = await this.userService.findOneByFilters({
@@ -439,7 +445,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('error.auth.refresh.user-not-found');
+      throw new BadRequestException(
+        'error.auth-service.refresh.user-not-found',
+      );
     }
 
     const userDTO = plainToInstance(UserDTO, user, {
@@ -469,7 +477,9 @@ export class AuthService {
     );
 
     if (!session) {
-      throw new BadRequestException('error.auth.refresh.session-not-found');
+      throw new BadRequestException(
+        'error.auth-service.refresh.session-not-found',
+      );
     }
 
     this.setCookie({
