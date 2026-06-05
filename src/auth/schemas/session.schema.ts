@@ -7,13 +7,13 @@ import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 export class Session {
   _id: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   userId: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   accessToken: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   refreshToken: string;
 
   @Prop({ required: true })

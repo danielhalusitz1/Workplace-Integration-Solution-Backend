@@ -4,11 +4,11 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import type { Request } from 'express';
 import { AuthService } from 'src/auth/services/auth.service';
+import { ErrorTypes } from 'src/enums/error-types.enum';
 import { UserDTO } from 'src/user/dto/user.dto';
 
 export interface RequestWithUser extends Request {
@@ -20,7 +20,6 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly authService: AuthService,
-    private readonly configService: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -29,12 +28,10 @@ export class AuthGuard implements CanActivate {
     const accessToken = this.extractAccessTokenFromCookie(request);
 
     if (!accessToken) {
-      throw new UnauthorizedException('error.auth-guard.token-not-found');
+      throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
     }
 
-    const user = await this.jwtService.verifyAsync<UserDTO>(accessToken, {
-      secret: this.configService.getOrThrow<string>('SECRET_KEY'),
-    });
+    const user = await this.jwtService.verifyAsync<UserDTO>(accessToken);
 
     const activeSession = await this.authService.getActiveSession({
       accessToken,
@@ -42,7 +39,7 @@ export class AuthGuard implements CanActivate {
     });
 
     if (!activeSession) {
-      throw new UnauthorizedException('error.auth-guard.session-not-found');
+      throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
     }
 
     request.user = plainToInstance(UserDTO, user, {

@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { ExternalAccount } from 'src/auth/schemas/external-account.schema';
+import { ErrorTypes } from 'src/enums/error-types.enum';
 import { decrypt } from 'src/utils/encrypt';
 
 import { GoogleClientCreateDTO } from './dto/google-client-create.dto';
@@ -52,9 +53,7 @@ export class GoogleClientService {
       if (e.response?.data?.error === 'invalid_grant') {
         this.logger.error(e);
 
-        throw new UnauthorizedException(
-          'error.google-client-service.reconnect-required',
-        );
+        throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
       }
       throw e;
     }

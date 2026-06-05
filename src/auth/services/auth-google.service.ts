@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Credentials, OAuth2Client } from 'google-auth-library';
 import { Model } from 'mongoose';
+import { ErrorTypes } from 'src/enums/error-types.enum';
 import { GoogleClientService } from 'src/google-client/google-client.service';
 import { encrypt } from 'src/utils/encrypt';
 
@@ -107,7 +108,7 @@ export class AuthGoogleService {
       tokens = getTokenRes.tokens;
     } catch (error) {
       this.logger.error(error);
-      throw new BadRequestException('error.auth-google-service.login-failed');
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     client.setCredentials(tokens);
@@ -122,11 +123,11 @@ export class AuthGoogleService {
       user = userRes.data;
     } catch (error) {
       this.logger.error(error);
-      throw new BadRequestException('error.auth-google-service.login-failed');
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     if (!user) {
-      throw new BadRequestException('error.auth-google-service.login-failed');
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     return {

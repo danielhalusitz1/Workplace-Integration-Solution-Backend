@@ -50,7 +50,7 @@
         {
           "name": "Logout",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [],
             "url": {
               "raw": "{{base}}/auth/logout",
@@ -68,7 +68,7 @@
         {
           "name": "Logout Everywhere",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [],
             "url": {
               "raw": "{{base}}/auth/logout-everywhere",
@@ -78,6 +78,42 @@
               "path": [
                 "auth",
                 "logout-everywhere"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get google auth url",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/auth/google-auth-url",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "google-auth-url"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get microsoft auth url",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/auth/microsoft-auth-url",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "microsoft-auth-url"
               ]
             }
           },
@@ -98,7 +134,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "https://accounts.google.com/o/oauth2/v2/auth?client_id=932265249325-jaa5mstcjar4vqtotseodp6hvijs07rp.apps.googleusercontent.com&response_type=code&scope=openid email profile&access_type=offline&redirect_uri=http://127.0.0.1:3000/auth/google&prompt=consent",
+              "raw": "https://accounts.google.com/o/oauth2/v2/auth?client_id=932265249325-jaa5mstcjar4vqtotseodp6hvijs07rp.apps.googleusercontent.com&response_type=code&scope=openid email profile&access_type=offline&redirect_uri=http://localhost:3000/auth/google&prompt=consent",
               "protocol": "https",
               "host": [
                 "accounts",
@@ -130,7 +166,7 @@
                 },
                 {
                   "key": "redirect_uri",
-                  "value": "http://127.0.0.1:3000/auth/google"
+                  "value": "http://localhost:3000/auth/google"
                 },
                 {
                   "key": "prompt",

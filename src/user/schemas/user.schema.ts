@@ -13,11 +13,6 @@ export class User {
   @Prop()
   lastName?: string;
 
-  @Prop({
-    required: true,
-  })
-  userSettingsId: string;
-
   createdAt: Date;
 
   updatedAt: Date;

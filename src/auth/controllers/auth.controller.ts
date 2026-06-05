@@ -1,4 +1,12 @@
-import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { User } from 'src/decorators/user.decorator';
@@ -41,7 +49,7 @@ export class AuthController {
     return this.authService.microsoft(payload, req, res);
   }
 
-  @Get('refresh')
+  @Post('refresh')
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -59,7 +67,7 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('logout')
+  @Post('logout')
   async logout(
     @User() user: UserDTO,
     @Req() req: Request,
@@ -69,7 +77,7 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('logout-everywhere')
+  @Post('logout-everywhere')
   async logoutEverywhere(
     @User() user: UserDTO,
     @Res({ passthrough: true }) res: Response,

@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { Model, Types } from 'mongoose';
+import { ErrorTypes } from 'src/enums/error-types.enum';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserDocument } from 'src/user/schemas/user.schema';
@@ -79,14 +80,16 @@ export class AuthService {
       | string
       | undefined;
 
-    const nodeEnv = this.configService.getOrThrow<string>('NODE_ENV');
+    const skipOauthStateCheck = this.configService.getOrThrow<string>(
+      'SKIP_OAUTH_STATE_CHECK',
+    );
     if (
-      nodeEnv !== 'development' &&
+      skipOauthStateCheck !== 'true' &&
       (!payload.state ||
         !googleStateFromCookie ||
         payload.state !== googleStateFromCookie)
     ) {
-      throw new BadRequestException('error.auth-service.google.state-missing');
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     res.clearCookie('google_state', {
@@ -99,7 +102,7 @@ export class AuthService {
     const expiryDate = googleUser.expiryDate;
 
     if (!accessToken || expiryDate === null || expiryDate === undefined) {
-      throw new BadRequestException('error.auth-service.google.auth-failed');
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     const tokens = await this.authUser({
@@ -133,16 +136,16 @@ export class AuthService {
       | string
       | undefined;
 
-    const nodeEnv = this.configService.getOrThrow<string>('NODE_ENV');
+    const skipOauthStateCheck = this.configService.getOrThrow<string>(
+      'SKIP_OAUTH_STATE_CHECK',
+    );
     if (
-      nodeEnv !== 'development' &&
+      skipOauthStateCheck !== 'true' &&
       (!payload.state ||
         !microsoftStateFromCookie ||
         payload.state !== microsoftStateFromCookie)
     ) {
-      throw new BadRequestException(
-        'error.auth-service.microsoft.state-missing',
-      );
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     res.clearCookie('microsoft_state', {
@@ -155,7 +158,7 @@ export class AuthService {
     const expiryDate = microsoftUser.expiryDate;
 
     if (!accessToken || expiryDate === null || expiryDate === undefined) {
-      throw new BadRequestException('error.auth-service.microsoft.auth-failed');
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     const tokens = await this.authUser({
@@ -198,7 +201,7 @@ export class AuthService {
 
     await this.userSettingsService.updateByFilters(
       {
-        _id: new Types.ObjectId(user.userSettingsId),
+        userId: user._id.toString(),
       },
       {
         ...(googleConnected !== undefined ? { googleConnected } : {}),
@@ -241,27 +244,25 @@ export class AuthService {
     } = payload;
 
     if (!refreshToken) {
-      throw new BadRequestException(
-        'error.auth-service.auth-user.registration-failed',
-      );
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     const externalAccountMongoId = new Types.ObjectId();
 
-    const userSettings = await this.userSettingsService.create(
+    const user = await this.userService.create(
       {
-        ...(googleConnected !== undefined ? { googleConnected } : {}),
-        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
-        primaryExternalAccount: externalAccountMongoId.toString(),
+        firstName,
+        lastName,
       },
       session,
     );
 
-    const user = await this.userService.create(
+    await this.userSettingsService.create(
       {
-        userSettingsId: userSettings._id.toString(),
-        firstName,
-        lastName,
+        userId: user._id.toString(),
+        ...(googleConnected !== undefined ? { googleConnected } : {}),
+        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
+        primaryExternalAccount: externalAccountMongoId.toString(),
       },
       session,
     );
@@ -300,9 +301,7 @@ export class AuthService {
     } = payload;
 
     if (!refreshToken) {
-      throw new BadRequestException(
-        'error.auth-service.auth-user.link-account-failed',
-      );
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     await this.externalAccountModel.create(
@@ -322,7 +321,7 @@ export class AuthService {
 
     await this.userSettingsService.updateByFilters(
       {
-        _id: new Types.ObjectId(user.userSettingsId),
+        userId: user._id.toString(),
       },
       {
         ...(googleConnected !== undefined ? { googleConnected } : {}),
@@ -425,9 +424,7 @@ export class AuthService {
       | undefined;
 
     if (!refreshTokenFromCookie) {
-      throw new BadRequestException(
-        'error.auth-service.refresh.token-not-found',
-      );
+      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
     }
 
     const oldSession = await this.sessionModel.findOne({
@@ -435,9 +432,7 @@ export class AuthService {
     });
 
     if (!oldSession) {
-      throw new BadRequestException(
-        'error.auth-service.refresh.session-not-found',
-      );
+      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
     }
 
     const user = await this.userService.findOneByFilters({
@@ -445,9 +440,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException(
-        'error.auth-service.refresh.user-not-found',
-      );
+      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
     }
 
     const userDTO = plainToInstance(UserDTO, user, {
@@ -477,9 +470,7 @@ export class AuthService {
     );
 
     if (!session) {
-      throw new BadRequestException(
-        'error.auth-service.refresh.session-not-found',
-      );
+      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
     }
 
     this.setCookie({

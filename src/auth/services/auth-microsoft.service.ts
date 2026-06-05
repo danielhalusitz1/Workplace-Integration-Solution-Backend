@@ -3,8 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import { Model } from 'mongoose';
+import { ErrorTypes } from 'src/enums/error-types.enum';
 import { MicrosoftClientService } from 'src/microsoft-client/microsoft-client.service';
 import { encrypt } from 'src/utils/encrypt';
 
@@ -20,17 +20,14 @@ type TokenResponse = {
   access_token: string;
   refresh_token: string;
   expires_in: number;
-  id_token: string;
-};
-
-type IdTokenDecoded = {
-  email: string;
 };
 
 type MeResponse = {
   id: string;
   givenName: string;
   surname: string;
+  mail?: string;
+  otherMails?: string[];
 };
 
 @Injectable()
@@ -124,15 +121,10 @@ export class AuthMicrosoftService {
         },
       );
 
-      const { access_token, expires_in, id_token, refresh_token } =
-        tokenResponse.data;
-
-      const userData = jwtDecode<IdTokenDecoded>(id_token);
-
-      const { email } = userData;
+      const { access_token, expires_in, refresh_token } = tokenResponse.data;
 
       const meResponse = await axios.get<MeResponse>(
-        'https://graph.microsoft.com/v1.0/me',
+        'https://graph.microsoft.com/v1.0/me?$select=id,givenName,surname,mail,otherMails',
         {
           headers: {
             Authorization: `Bearer ${tokenResponse.data.access_token}`,
@@ -140,7 +132,13 @@ export class AuthMicrosoftService {
         },
       );
 
-      const { givenName, id, surname } = meResponse.data;
+      const { givenName, id, surname, mail, otherMails } = meResponse.data;
+
+      const email = mail ?? otherMails?.[0];
+
+      if (!email) {
+        throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      }
 
       return {
         id,
@@ -153,9 +151,7 @@ export class AuthMicrosoftService {
       };
     } catch (error) {
       this.logger.error(error);
-      throw new BadRequestException(
-        'error.auth-microsoft-service.login-failed',
-      );
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
   }
 
@@ -164,7 +160,7 @@ export class AuthMicrosoftService {
 
     const state = crypto.randomUUID();
 
-    res.cookie('google_state', state, {
+    res.cookie('microsoft_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

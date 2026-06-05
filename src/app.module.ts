@@ -25,7 +25,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
       imports: [ConfigModule],
       global: true,
       useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('SECRET_KEY'),
+        secret: config.getOrThrow<string>('JWT_SECRET_KEY'),
       }),
       inject: [ConfigService],
     }),

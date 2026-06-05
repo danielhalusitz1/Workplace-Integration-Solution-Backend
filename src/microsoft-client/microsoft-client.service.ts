@@ -3,6 +3,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import { ExternalAccount } from 'src/auth/schemas/external-account.schema';
+import { ErrorTypes } from 'src/enums/error-types.enum';
 import { decrypt } from 'src/utils/encrypt';
 
 type MicrosoftClient = {
@@ -102,9 +103,7 @@ export class MicrosoftClientService {
       } catch (refreshError) {
         this.logger.error(refreshError);
 
-        throw new UnauthorizedException(
-          'error.microsoft-client-service.reconnect-required',
-        );
+        throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
       }
     }
   }
@@ -112,7 +111,7 @@ export class MicrosoftClientService {
   async refreshToken(externalAccount: ExternalAccount): Promise<{
     accessToken: string;
     refreshToken: string;
-    expiryDate: Date;
+    expiryDate: number;
   }> {
     const refreshToken = decrypt(externalAccount.refreshTokenEncrypted);
 
@@ -147,7 +146,7 @@ export class MicrosoftClientService {
 
     const newRefreshToken = data.refresh_token ?? refreshToken;
 
-    const expiryDate = new Date(Date.now() + data.expires_in * 1000);
+    const expiryDate = Date.now() + data.expires_in * 1000;
 
     return {
       accessToken: newAccessToken,

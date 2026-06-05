@@ -11,5 +11,4 @@ export class UserCreateDTO extends OmitType(User, [
   microsoftId?: string;
   firstName?: string;
   lastName?: string;
-  userSettingsId: string;
 }
