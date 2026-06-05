@@ -26,6 +26,7 @@ import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
 import { AuthLinkAccountDTO } from '../dto/auth-link-account.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
 import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
+import { AuthMicrosoftDTO } from '../dto/auth-microsoft.dto';
 import { AuthMicrosoftUrlDTO } from '../dto/auth-microsoft-url.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
@@ -111,6 +112,62 @@ export class AuthService {
       refreshToken: googleUser.refreshToken,
       expiryDate,
       externalAccountType: ExternalAccountType.GOOGLE,
+    });
+
+    this.setCookie({
+      accessToken: tokens.accessToken,
+      accessExpiresAt: tokens.accessExpiresAt,
+      refreshToken: tokens.refreshToken,
+      refreshExpiresAt: tokens.refreshExpiresAt,
+      redirect: true,
+      res,
+    });
+  }
+
+  async microsoft(
+    payload: AuthMicrosoftDTO,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    const microsoftStateFromCookie = req.cookies['microsoft_state'] as
+      | string
+      | undefined;
+
+    const nodeEnv = this.configService.getOrThrow<string>('NODE_ENV');
+    if (
+      nodeEnv !== 'development' &&
+      (!payload.state ||
+        !microsoftStateFromCookie ||
+        payload.state !== microsoftStateFromCookie)
+    ) {
+      throw new BadRequestException(
+        'error.auth-service.microsoft.state-missing',
+      );
+    }
+
+    res.clearCookie('microsoft_state', {
+      sameSite: 'lax',
+    });
+
+    const microsoftUser = await this.authMicrosoftService.login(payload);
+
+    const accessToken = microsoftUser.accessToken;
+    const expiryDate = microsoftUser.expiryDate;
+
+    if (!accessToken || expiryDate === null || expiryDate === undefined) {
+      throw new BadRequestException('error.auth-service.google.auth-failed');
+    }
+
+    const tokens = await this.authUser({
+      foreignId: microsoftUser.id,
+      email: microsoftUser.email,
+      firstName: microsoftUser.firstName,
+      lastName: microsoftUser.lastName,
+      microsoftConnected: true,
+      accessToken,
+      refreshToken: microsoftUser.refreshToken,
+      expiryDate,
+      externalAccountType: ExternalAccountType.MICROSOFT,
     });
 
     this.setCookie({
