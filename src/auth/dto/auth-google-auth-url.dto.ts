@@ -1,5 +1,5 @@
 import type { Response } from 'express';
 
-export class AuthGetGoogleUrlDTO {
+export class AuthGoogleAuthUrlDTO {
   res: Response;
 }

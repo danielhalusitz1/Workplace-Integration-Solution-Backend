@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { GoogleClientModule } from 'src/google-client/google-client.module';
+import { MicrosoftClientModule } from 'src/microsoft-client/microsoft-client.module';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserModule } from 'src/user/user.module';
 import { UserSettingsModule } from 'src/user-settings/user-settings.module';
@@ -13,6 +14,7 @@ import {
 import { Session, SessionSchema } from './schemas/session.schema';
 import { AuthService } from './services/auth.service';
 import { AuthGoogleService } from './services/auth-google.service';
+import { AuthMicrosoftService } from './services/auth-microsoft.service';
 
 @Module({
   imports: [
@@ -21,10 +23,16 @@ import { AuthGoogleService } from './services/auth-google.service';
       { name: ExternalAccount.name, schema: ExternalAccountSchema },
     ]),
     GoogleClientModule,
+    MicrosoftClientModule,
     UserModule,
     UserSettingsModule,
   ],
-  providers: [AuthService, AuthGoogleService, MongodbTransactionService],
+  providers: [
+    AuthService,
+    AuthGoogleService,
+    AuthMicrosoftService,
+    MongodbTransactionService,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

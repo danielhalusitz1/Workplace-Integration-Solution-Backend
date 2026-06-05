@@ -6,7 +6,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { Model, Types } from 'mongoose';
-import { GoogleClientService } from 'src/google-client/google-client.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserDocument } from 'src/user/schemas/user.schema';
@@ -21,18 +20,20 @@ import {
 import { AuthClearCookieDTO } from '../dto/auth-clear-cookie.dto';
 import { AuthCreateUserDTO } from '../dto/auth-create-user.dto';
 import { AuthGetActiveSessionDTO } from '../dto/auth-get-active-session.dto';
-import { AuthGetGoogleUrlDTO } from '../dto/auth-get-google-url.dto';
 import { GetTokensDTO, GetTokensResponseDTO } from '../dto/auth-get-tokens.dto';
 import { AuthGoogleDTO } from '../dto/auth-google.dto';
+import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
 import { AuthLinkAccountDTO } from '../dto/auth-link-account.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
 import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
+import { AuthMicrosoftUrlDTO } from '../dto/auth-microsoft-url.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
 import { ExternalAccount } from '../schemas/external-account.schema';
 import { Session, SessionDocument } from '../schemas/session.schema';
 import { AuthGoogleService } from './auth-google.service';
+import { AuthMicrosoftService } from './auth-microsoft.service';
 
 @Injectable()
 export class AuthService {
@@ -43,12 +44,12 @@ export class AuthService {
     private readonly externalAccountModel: Model<ExternalAccount>,
 
     private readonly authGoogleService: AuthGoogleService,
+    private readonly authMicrosoftService: AuthMicrosoftService,
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly userSettingsService: UserSettingsService,
     private readonly mongodbTransactionService: MongodbTransactionService,
     private readonly jwtService: JwtService,
-    private readonly googleClientService: GoogleClientService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
@@ -60,38 +61,12 @@ export class AuthService {
     });
   }
 
-  getGoogleUrl(payload: AuthGetGoogleUrlDTO) {
-    const { res } = payload;
+  getGoogleAuthUrl(payload: AuthGoogleAuthUrlDTO) {
+    return this.authGoogleService.getAuthUrl(payload);
+  }
 
-    const state = crypto.randomUUID();
-
-    res.cookie('google_state', state, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 5 * 60 * 1000,
-    });
-
-    const client = this.googleClientService.create();
-
-    const redirectUri = this.configService.getOrThrow<string>(
-      'GOOGLE_AUTH_REDIRECT_URI',
-    );
-    const base = this.configService.getOrThrow<string>('BASE');
-    const port = this.configService.getOrThrow<string>('PORT');
-
-    const redirectUrl = `${base}:${port}/${redirectUri}`;
-
-    const url = client.generateAuthUrl({
-      response_type: 'code',
-      scope: ['openid', 'email', 'profile'],
-      access_type: 'offline',
-      redirect_uri: redirectUrl,
-      prompt: 'consent',
-      state,
-    });
-
-    return url;
+  getMicrosoftAuthUrl(payload: AuthMicrosoftUrlDTO) {
+    return this.authMicrosoftService.getAuthUrl(payload);
   }
 
   async google(

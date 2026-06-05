@@ -12,9 +12,14 @@ import { AuthService } from '../services/auth.service';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get('google-url')
-  getGoogleUrl(@Res({ passthrough: true }) res: Response) {
-    return this.authService.getGoogleUrl({ res });
+  @Get('google-auth-url')
+  getGoogleAuthUrl(@Res({ passthrough: true }) res: Response) {
+    return this.authService.getGoogleAuthUrl({ res });
+  }
+
+  @Get('microsoft-auth-url')
+  getMicrosoftAuthUrl(@Res({ passthrough: true }) res: Response) {
+    return this.authService.getMicrosoftAuthUrl({ res });
   }
 
   @Get('google')

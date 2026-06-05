@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Credentials, OAuth2Client } from 'google-auth-library';
@@ -6,6 +7,7 @@ import { Model } from 'mongoose';
 import { GoogleClientService } from 'src/google-client/google-client.service';
 import { encrypt } from 'src/utils/encrypt';
 
+import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
 import {
   AuthGoogleLoginDTO,
   AuthGoogleLoginResponseDTO,
@@ -29,6 +31,7 @@ export class AuthGoogleService {
     private readonly externalAccountModel: Model<ExternalAccount>,
 
     private readonly googleClientService: GoogleClientService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
@@ -135,5 +138,39 @@ export class AuthGoogleService {
       accessToken: tokens.access_token,
       expiryDate: tokens.expiry_date,
     };
+  }
+
+  getAuthUrl(payload: AuthGoogleAuthUrlDTO) {
+    const { res } = payload;
+
+    const state = crypto.randomUUID();
+
+    res.cookie('google_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+
+    const client = this.googleClientService.create();
+
+    const redirectUri = this.configService.getOrThrow<string>(
+      'GOOGLE_AUTH_REDIRECT_URI',
+    );
+    const base = this.configService.getOrThrow<string>('BASE');
+    const port = this.configService.getOrThrow<string>('PORT');
+
+    const redirectUrl = `${base}:${port}/${redirectUri}`;
+
+    const url = client.generateAuthUrl({
+      response_type: 'code',
+      scope: ['openid', 'email', 'profile'],
+      access_type: 'offline',
+      redirect_uri: redirectUrl,
+      prompt: 'consent',
+      state,
+    });
+
+    return url;
   }
 }
