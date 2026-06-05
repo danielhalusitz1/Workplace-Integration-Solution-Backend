@@ -1,14 +1,20 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import { Model } from 'mongoose';
 import { MicrosoftClientService } from 'src/microsoft-client/microsoft-client.service';
+import { encrypt } from 'src/utils/encrypt';
 
 import {
   AuthMicrosoftLoginDTO,
   AuthMicrosoftLoginResponseDTO,
 } from '../dto/auth-microsoft-login.dto';
 import { AuthMicrosoftUrlDTO } from '../dto/auth-microsoft-url.dto';
+import { ExternalAccountType } from '../enum/external-account-type.enum';
+import { ExternalAccount } from '../schemas/external-account.schema';
 
 type TokenResponse = {
   access_token: string;
@@ -32,9 +38,57 @@ export class AuthMicrosoftService {
   private readonly logger = new Logger(AuthMicrosoftService.name);
 
   constructor(
+    @InjectModel(ExternalAccount.name)
+    private readonly externalAccountModel: Model<ExternalAccount>,
+
     private readonly microsoftClientService: MicrosoftClientService,
     private readonly configService: ConfigService,
   ) {}
+
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  private async updateAccessTokens() {
+    this.logger.log('Start update access tokens');
+    const cursor = this.externalAccountModel
+      .find({
+        type: ExternalAccountType.MICROSOFT,
+        expiryDate: {
+          $lte: Date.now() + 10 * 60 * 1000,
+        },
+      })
+      .lean()
+      .cursor();
+
+    let promises: Promise<void>[] = [];
+    for await (const msAccount of cursor) {
+      promises.push(this.updateAccessToken(msAccount));
+      if (promises.length === 100) {
+        await Promise.allSettled(promises);
+        promises = [];
+      }
+    }
+
+    if (promises.length > 0) {
+      await Promise.allSettled(promises);
+    }
+
+    this.logger.log('End update access tokens');
+  }
+
+  private async updateAccessToken(msAccount: ExternalAccount) {
+    const { accessToken, expiryDate, refreshToken } =
+      await this.microsoftClientService.refreshToken(msAccount);
+
+    await this.externalAccountModel.updateOne(
+      {
+        _id: msAccount._id,
+      },
+      {
+        accessTokenEncrypted: encrypt(accessToken),
+        refreshTokenEncrypted: encrypt(refreshToken),
+        expiryDate,
+      },
+    );
+  }
 
   async login(
     payload: AuthMicrosoftLoginDTO,
