@@ -22,7 +22,7 @@ export class UserSettings {
   })
   primaryExternalAccount: string;
 
-  @Prop({ default: Language.EN, enum: Language })
+  @Prop({ default: Language.EN, enum: Language, type: String })
   language: Language;
 
   createdAt: Date;

@@ -17,7 +17,7 @@ export class ExternalAccount {
   @Prop({ required: true })
   email: string;
 
-  @Prop({ required: true, enum: ExternalAccountType })
+  @Prop({ required: true, enum: ExternalAccountType, type: String })
   type: ExternalAccountType;
 
   @Prop({ required: true })
