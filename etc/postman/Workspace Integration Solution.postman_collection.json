@@ -102,6 +102,24 @@
           "response": []
         },
         {
+          "name": "Get google connection url",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/auth/google-connection-url",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "google-connection-url"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Get microsoft auth url",
           "request": {
             "method": "GET",
@@ -114,6 +132,24 @@
               "path": [
                 "auth",
                 "microsoft-auth-url"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get microsoft connection url",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/auth/microsoft-connection-url",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "microsoft-connection-url"
               ]
             }
           },
