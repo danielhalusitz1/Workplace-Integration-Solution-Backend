@@ -36,7 +36,7 @@ export class UserSettingsService {
   }
 
   async updateByFilters(
-    filters: UpdateQuery<UserSettings>,
+    filters: QueryFilter<UserSettings>,
     update: UpdateQuery<UserSettings>,
     options?: QueryOptions<UserSettings>,
   ): Promise<UserSettingsDocument | null> {

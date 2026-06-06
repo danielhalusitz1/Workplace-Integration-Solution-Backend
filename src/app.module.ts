@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -7,6 +8,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { ExternalAccountModule } from './external-account/external-account.module';
 import { GoogleClientModule } from './google-client/google-client.module';
+import { AuthGuard } from './guards/auth.guard';
 import { UserModule } from './user/user.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 @Module({
@@ -36,6 +38,12 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     UserModule,
     UserSettingsModule,
     ExternalAccountModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
   ],
 })
 export class AppModule {}

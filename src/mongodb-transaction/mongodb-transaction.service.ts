@@ -22,8 +22,6 @@ export class MongodbTransactionService {
       });
 
       return result!;
-    } catch (error) {
-      throw error;
     } finally {
       await session.endSession();
     }

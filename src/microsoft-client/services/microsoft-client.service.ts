@@ -25,7 +25,6 @@ export class MicrosoftClientService {
   private readonly logger: Logger = new Logger(MicrosoftClientService.name);
 
   public msalClient: ConfidentialClientApplication;
-  axios: any;
 
   constructor(
     private readonly externalAccountService: ExternalAccountService,

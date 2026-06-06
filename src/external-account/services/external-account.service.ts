@@ -37,7 +37,10 @@ export class ExternalAccountService {
       );
     }
 
-    await this.externalAccountModel.deleteOne({ _id: payload._id });
+    await this.externalAccountModel.deleteOne({
+      _id: payload._id,
+      userId: user._id.toString(),
+    });
   }
 
   async create(

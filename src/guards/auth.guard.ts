@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -17,36 +18,43 @@ export interface RequestWithUser extends Request {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly logger: Logger = new Logger(AuthGuard.name);
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    try {
+      const request = context.switchToHttp().getRequest<RequestWithUser>();
 
-    const accessToken = this.extractAccessTokenFromCookie(request);
+      const accessToken = this.extractAccessTokenFromCookie(request);
 
-    if (!accessToken) {
+      if (!accessToken) {
+        throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
+      }
+
+      const user = await this.jwtService.verifyAsync<UserDTO>(accessToken);
+
+      const activeSession = await this.sessionService.getActiveSession({
+        accessToken,
+        userId: user._id,
+      });
+
+      if (!activeSession) {
+        throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
+      }
+
+      request.user = plainToInstance(UserDTO, user, {
+        excludeExtraneousValues: true,
+      });
+
+      return true;
+    } catch (error) {
+      this.logger.error(error);
       throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
     }
-
-    const user = await this.jwtService.verifyAsync<UserDTO>(accessToken);
-
-    const activeSession = await this.sessionService.getActiveSession({
-      accessToken,
-      userId: user._id,
-    });
-
-    if (!activeSession) {
-      throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
-    }
-
-    request.user = plainToInstance(UserDTO, user, {
-      excludeExtraneousValues: true,
-    });
-
-    return true;
   }
 
   private extractAccessTokenFromCookie(request: Request): string | null {
