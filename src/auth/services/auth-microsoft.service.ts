@@ -6,7 +6,6 @@ import axios from 'axios';
 import { Model } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { MicrosoftClientService } from 'src/microsoft-client/microsoft-client.service';
-import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { encrypt } from 'src/utils/encrypt';
 
 import { AuthMicrosoftGetConnectionUrlDTO } from '../dto/auth-microsoft-get-connection-url.dto';
@@ -42,7 +41,6 @@ export class AuthMicrosoftService {
 
     private readonly microsoftClientService: MicrosoftClientService,
     private readonly configService: ConfigService,
-    private readonly userSettingsService: UserSettingsService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
@@ -50,6 +48,7 @@ export class AuthMicrosoftService {
     this.logger.log('Start update access tokens');
     const cursor = this.externalAccountModel
       .find({
+        connected: true,
         type: ExternalAccountType.MICROSOFT,
         expiryDate: {
           $lte: Date.now() + 10 * 60 * 1000,
@@ -90,13 +89,12 @@ export class AuthMicrosoftService {
         },
       );
     } catch (error) {
-      await this.userSettingsService.updateByFilters(
+      await this.externalAccountModel.updateOne(
         {
-          userId: msAccount.userId,
-          microsoftConnected: true,
+          _id: msAccount._id,
         },
         {
-          microsoftConnected: false,
+          connected: false,
         },
       );
       throw error;

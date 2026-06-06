@@ -21,8 +21,6 @@ export function defaultUserSettingsCreate(
 ): UserSettingsCreateDTO {
   return {
     userId: new Types.ObjectId().toString(),
-    googleConnected: false,
-    microsoftConnected: false,
     primaryExternalAccount: new Types.ObjectId().toString(),
     ...overrides,
   };
@@ -74,14 +72,10 @@ export function defaultExternalAccountCreate(
 
 export function defaultUserSettingsDocumentOverrides(
   overrides: Partial<{
-    googleConnected: boolean;
-    microsoftConnected: boolean;
     language: Language;
   }> = {},
 ) {
   return {
-    googleConnected: false,
-    microsoftConnected: false,
     language: Language.EN,
     ...overrides,
   };

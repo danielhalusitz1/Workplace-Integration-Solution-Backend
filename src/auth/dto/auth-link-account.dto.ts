@@ -10,8 +10,6 @@ export class AuthLinkAccountDTO {
   expiryDate: number;
   user: UserDocument;
   externalAccountType: ExternalAccountType;
-  googleConnected?: boolean;
-  microsoftConnected?: boolean;
   session: ClientSession;
   email: string;
   connectionFlow?: boolean;

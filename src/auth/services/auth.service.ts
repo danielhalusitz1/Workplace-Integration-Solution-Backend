@@ -131,7 +131,6 @@ export class AuthService {
         email: googleUser.email,
         firstName: googleUser.firstName,
         lastName: googleUser.lastName,
-        googleConnected: true,
         accessToken,
         refreshToken: googleUser.refreshToken,
         expiryDate,
@@ -227,7 +226,6 @@ export class AuthService {
             externalAccountType: ExternalAccountType.MICROSOFT,
             foreignId: microsoftUser.id,
             user,
-            microsoftConnected: true,
             refreshToken,
             session,
             connectionFlow: true,
@@ -293,7 +291,6 @@ export class AuthService {
         email: microsoftUser.email,
         firstName: microsoftUser.firstName,
         lastName: microsoftUser.lastName,
-        microsoftConnected: true,
         accessToken,
         refreshToken: microsoftUser.refreshToken,
         expiryDate,
@@ -387,7 +384,6 @@ export class AuthService {
             externalAccountType: ExternalAccountType.GOOGLE,
             foreignId: googleUser.id,
             user,
-            googleConnected: true,
             refreshToken,
             session,
             connectionFlow: true,
@@ -411,8 +407,6 @@ export class AuthService {
     const {
       user,
       session,
-      googleConnected,
-      microsoftConnected,
       accessToken,
       email,
       expiryDate,
@@ -420,17 +414,6 @@ export class AuthService {
       foreignId,
       refreshToken,
     } = payload;
-
-    await this.userSettingsService.updateByFilters(
-      {
-        userId: user._id.toString(),
-      },
-      {
-        ...(googleConnected !== undefined ? { googleConnected } : {}),
-        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
-      },
-      { session },
-    );
 
     await this.externalAccountModel.updateOne(
       {
@@ -445,6 +428,7 @@ export class AuthService {
           : {}),
         accessTokenEncrypted: encrypt(accessToken),
         expiryDate,
+        connected: true,
       },
       { session },
     );
@@ -453,8 +437,6 @@ export class AuthService {
   private async createUser(payload: AuthCreateUserDTO): Promise<UserDocument> {
     const {
       session,
-      googleConnected,
-      microsoftConnected,
       externalAccountType,
       foreignId,
       email,
@@ -482,8 +464,6 @@ export class AuthService {
     await this.userSettingsService.create(
       {
         userId: user._id.toString(),
-        ...(googleConnected !== undefined ? { googleConnected } : {}),
-        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
         primaryExternalAccount: externalAccountMongoId.toString(),
       },
       session,
@@ -516,8 +496,6 @@ export class AuthService {
       expiryDate,
       user,
       externalAccountType,
-      googleConnected,
-      microsoftConnected,
       session,
       email,
       connectionFlow,
@@ -565,19 +543,9 @@ export class AuthService {
         accessTokenEncrypted: encrypt(accessToken),
         expiryDate,
         email,
+        connected: true,
       },
       { session, upsert: true },
-    );
-
-    await this.userSettingsService.updateByFilters(
-      {
-        userId: user._id.toString(),
-      },
-      {
-        ...(googleConnected !== undefined ? { googleConnected } : {}),
-        ...(microsoftConnected !== undefined ? { microsoftConnected } : {}),
-      },
-      { session },
     );
   }
 

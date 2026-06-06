@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, QueryOptions, UpdateQuery } from 'mongoose';
+import {
+  ClientSession,
+  Model,
+  QueryFilter,
+  QueryOptions,
+  UpdateQuery,
+} from 'mongoose';
 
 import { UserSettingsCreateDTO } from '../dto/user-settings-create.dto';
 import {
@@ -20,6 +26,13 @@ export class UserSettingsService {
     session?: ClientSession,
   ): Promise<UserSettingsDocument> {
     return (await this.userSettingsModel.create([payload], { session }))[0];
+  }
+
+  async findOneByFilters(
+    filters: QueryFilter<UserSettings>,
+    options?: QueryOptions<UserSettings>,
+  ): Promise<UserSettingsDocument | null> {
+    return await this.userSettingsModel.findOne(filters, null, options);
   }
 
   async updateByFilters(

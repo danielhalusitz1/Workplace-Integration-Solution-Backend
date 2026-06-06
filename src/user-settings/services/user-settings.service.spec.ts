@@ -18,18 +18,13 @@ describe('UserSettingsService', () => {
   });
 
   it('persists user settings in MongoDB', async () => {
-    const payload = defaultUserSettingsCreate({
-      googleConnected: true,
-      microsoftConnected: false,
-    });
+    const payload = defaultUserSettingsCreate();
 
     const created = await userSettingsService.create(payload);
 
-    expect(created.googleConnected).toBe(true);
     expect(created.userId).toBe(payload.userId);
 
     const stored = await userSettingsTestProvider.findByUserId(payload.userId);
     expect(stored).not.toBeNull();
-    expect(stored?.googleConnected).toBe(true);
   });
 });

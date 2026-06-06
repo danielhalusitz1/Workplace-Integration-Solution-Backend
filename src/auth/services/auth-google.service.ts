@@ -6,7 +6,6 @@ import { Credentials, OAuth2Client } from 'google-auth-library';
 import { Model } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { GoogleClientService } from 'src/google-client/google-client.service';
-import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { encrypt } from 'src/utils/encrypt';
 
 import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
@@ -35,7 +34,6 @@ export class AuthGoogleService {
 
     private readonly googleClientService: GoogleClientService,
     private readonly configService: ConfigService,
-    private readonly userSettingsService: UserSettingsService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
@@ -44,6 +42,7 @@ export class AuthGoogleService {
     const cursor = this.externalAccountModel
       .find({
         type: ExternalAccountType.GOOGLE,
+        connected: true,
         expiryDate: {
           $lte: Date.now() + 10 * 60 * 1000,
         },
@@ -80,13 +79,12 @@ export class AuthGoogleService {
     const { access_token, expiry_date, refresh_token } = newCredentials;
     if (!access_token || expiry_date === null || expiry_date === undefined) {
       this.logger.error(`Missing tokens at user: ${googleAccount.userId}`);
-      await this.userSettingsService.updateByFilters(
+      await this.externalAccountModel.updateOne(
         {
-          userId: googleAccount.userId,
-          googleConnected: true,
+          _id: googleAccount._id,
         },
         {
-          googleConnected: false,
+          connected: false,
         },
       );
       return;
@@ -184,7 +182,6 @@ export class AuthGoogleService {
       scope: ['openid', 'email', 'profile'],
       access_type: 'offline',
       redirect_uri: redirectUrl,
-      prompt: 'consent',
       state,
     });
 

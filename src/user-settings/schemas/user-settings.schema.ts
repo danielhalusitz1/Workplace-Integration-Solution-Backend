@@ -11,12 +11,6 @@ export class UserSettings {
   @Prop({ required: true, unique: true })
   userId: string;
 
-  @Prop({ default: false })
-  googleConnected: boolean;
-
-  @Prop({ default: false })
-  microsoftConnected: boolean;
-
   @Prop({
     required: true,
   })

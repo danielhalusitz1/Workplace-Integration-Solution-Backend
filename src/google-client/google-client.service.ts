@@ -1,6 +1,8 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
 import { OAuth2Client } from 'google-auth-library';
+import { Model } from 'mongoose';
 import { ExternalAccount } from 'src/auth/schemas/external-account.schema';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
@@ -12,8 +14,11 @@ import { GoogleClientCreateDTO } from './dto/google-client-create.dto';
 export class GoogleClientService {
   private readonly logger: Logger = new Logger('GoogleClientService');
   constructor(
-    private readonly config: ConfigService,
+    @InjectModel(ExternalAccount.name)
+    private readonly externalAccountModel: Model<ExternalAccount>,
+
     private readonly userSettingsService: UserSettingsService,
+    private readonly config: ConfigService,
   ) {}
 
   create(payload?: GoogleClientCreateDTO): OAuth2Client {
@@ -58,23 +63,21 @@ export class GoogleClientService {
       if (e.response?.data?.error === 'invalid_grant') {
         this.logger.error(e);
 
-        const userSettings = await this.userSettingsService.updateByFilters(
+        await this.externalAccountModel.updateOne(
           {
-            userId: externalAccount.userId,
-            googleConnected: true,
+            _id: externalAccount._id,
+            connected: true,
           },
           {
-            googleConnected: false,
+            connected: false,
           },
         );
 
-        if (!userSettings) {
-          throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
-        }
+        const userSettings = await this.userSettingsService.findOneByFilters({
+          primaryExternalAccount: externalAccount._id.toString(),
+        });
 
-        if (
-          userSettings.primaryExternalAccount === externalAccount._id.toString()
-        ) {
+        if (userSettings) {
           throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
         } else {
           throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);

@@ -29,6 +29,9 @@ export class ExternalAccount {
   @Prop({ required: true })
   expiryDate: number;
 
+  @Prop({ default: true })
+  connected: boolean;
+
   createdAt: Date;
 
   updatedAt: Date;

@@ -8,8 +8,6 @@ export class AuthAuthUserDTO {
   refreshToken?: string | null;
   accessToken: string;
   expiryDate: number;
-  googleConnected?: boolean;
-  microsoftConnected?: boolean;
   externalAccountType: ExternalAccountType;
 }
 
