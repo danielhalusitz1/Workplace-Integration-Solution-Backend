@@ -156,7 +156,16 @@ export class AuthGoogleService {
   }
 
   getConnectionUrl(payload: AuthGoogleConnectionUrlDTO) {
-    const { user } = payload;
+    const { user, res } = payload;
+
+    const state = encrypt(user._id);
+
+    res.cookie('google_connection_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
 
     const redirectUri = this.configService.getOrThrow<string>(
       'GOOGLE_CONNECTION_REDIRECT_URI',
@@ -176,7 +185,7 @@ export class AuthGoogleService {
       access_type: 'offline',
       redirect_uri: redirectUrl,
       prompt: 'consent',
-      state: user._id,
+      state,
     });
 
     return url;
@@ -187,7 +196,7 @@ export class AuthGoogleService {
 
     const state = crypto.randomUUID();
 
-    res.cookie('google_state', state, {
+    res.cookie('google_auth_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

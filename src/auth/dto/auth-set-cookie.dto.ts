@@ -5,6 +5,5 @@ export class AuthSetCookie {
   accessExpiresAt: Date;
   refreshToken: string;
   refreshExpiresAt: Date;
-  redirect: boolean;
   res: Response;
 }

@@ -172,13 +172,22 @@ export class AuthMicrosoftService {
   }
 
   async getConnectionUrl(payload: AuthMicrosoftGetConnectionUrlDTO) {
-    const { user } = payload;
+    const { user, res } = payload;
+    const state = encrypt(user._id);
+
+    res.cookie('microsoft_connection_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+
     const redirectUri = this.configService.getOrThrow<string>(
       'MICROSOFT_CONNECTION_REDIRECT_URI',
     );
     return await this.microsoftClientService.msalClient.getAuthCodeUrl({
       scopes: ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
-      state: user._id,
+      state,
       redirectUri: this.getRedirectUrl(redirectUri),
     });
   }
@@ -188,7 +197,7 @@ export class AuthMicrosoftService {
 
     const state = crypto.randomUUID();
 
-    res.cookie('microsoft_state', state, {
+    res.cookie('microsoft_auth_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

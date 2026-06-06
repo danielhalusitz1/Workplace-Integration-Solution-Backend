@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
@@ -12,7 +12,7 @@ import { UserDTO } from 'src/user/dto/user.dto';
 import { UserDocument } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
-import { encrypt } from 'src/utils/encrypt';
+import { decrypt, encrypt } from 'src/utils/encrypt';
 
 import {
   AuthAuthUserDTO,
@@ -43,6 +43,8 @@ import { AuthMicrosoftService } from './auth-microsoft.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger: Logger = new Logger(AuthService.name);
+
   constructor(
     @InjectModel(Session.name)
     private readonly sessionModel: Model<Session>,
@@ -88,98 +90,143 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const googleStateFromCookie = req.cookies['google_state'] as
-      | string
-      | undefined;
+    try {
+      const googleStateFromCookie = req.cookies['google_auth_state'] as
+        | string
+        | undefined;
 
-    const skipOauthStateCheck = this.configService.getOrThrow<string>(
-      'SKIP_OAUTH_STATE_CHECK',
-    );
-    if (
-      skipOauthStateCheck !== 'true' &&
-      (!payload.state ||
-        !googleStateFromCookie ||
-        payload.state !== googleStateFromCookie)
-    ) {
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      const skipOauthStateCheck = this.configService.getOrThrow<string>(
+        'SKIP_OAUTH_STATE_CHECK',
+      );
+      if (
+        skipOauthStateCheck !== 'true' &&
+        (!payload.state ||
+          !googleStateFromCookie ||
+          payload.state !== googleStateFromCookie)
+      ) {
+        throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      }
+
+      res.clearCookie('google_auth_state', {
+        sameSite: 'lax',
+      });
+
+      const googleUser = await this.authGoogleService.login(payload);
+
+      const accessToken = googleUser.accessToken;
+      const expiryDate = googleUser.expiryDate;
+
+      if (!accessToken || expiryDate === null || expiryDate === undefined) {
+        throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      }
+
+      const tokens = await this.authUser({
+        foreignId: googleUser.id,
+        email: googleUser.email,
+        firstName: googleUser.firstName,
+        lastName: googleUser.lastName,
+        googleConnected: true,
+        accessToken,
+        refreshToken: googleUser.refreshToken,
+        expiryDate,
+        externalAccountType: ExternalAccountType.GOOGLE,
+      });
+
+      this.setCookie({
+        accessToken: tokens.accessToken,
+        accessExpiresAt: tokens.accessExpiresAt,
+        refreshToken: tokens.refreshToken,
+        refreshExpiresAt: tokens.refreshExpiresAt,
+        res,
+      });
+    } finally {
+      res.redirect(this.configService.getOrThrow<string>('WEB_BASE'));
     }
-
-    res.clearCookie('google_state', {
-      sameSite: 'lax',
-    });
-
-    const googleUser = await this.authGoogleService.login(payload);
-
-    const accessToken = googleUser.accessToken;
-    const expiryDate = googleUser.expiryDate;
-
-    if (!accessToken || expiryDate === null || expiryDate === undefined) {
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
-    }
-
-    const tokens = await this.authUser({
-      foreignId: googleUser.id,
-      email: googleUser.email,
-      firstName: googleUser.firstName,
-      lastName: googleUser.lastName,
-      googleConnected: true,
-      accessToken,
-      refreshToken: googleUser.refreshToken,
-      expiryDate,
-      externalAccountType: ExternalAccountType.GOOGLE,
-    });
-
-    this.setCookie({
-      accessToken: tokens.accessToken,
-      accessExpiresAt: tokens.accessExpiresAt,
-      refreshToken: tokens.refreshToken,
-      refreshExpiresAt: tokens.refreshExpiresAt,
-      redirect: true,
-      res,
-    });
   }
 
   async microsoftConnectionCallback(
     payload: AuthMicrosoftConnectionCallbackDTO,
+    req: Request,
+    res: Response,
   ): Promise<void> {
     const { state } = payload;
+    const settingsUrl =
+      this.configService.getOrThrow<string>('WEB_BASE') + '/settings';
 
-    const user = await this.userService.findOneByFilters({
-      _id: new Types.ObjectId(state),
-    });
+    try {
+      const microsoftStateFromCookie = req.cookies[
+        'microsoft_connection_state'
+      ] as string | undefined;
 
-    if (!user) {
-      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-    }
+      const skipOauthStateCheck = this.configService.getOrThrow<string>(
+        'SKIP_OAUTH_STATE_CHECK',
+      );
+      if (
+        skipOauthStateCheck !== 'true' &&
+        (!state ||
+          !microsoftStateFromCookie ||
+          state !== microsoftStateFromCookie)
+      ) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
 
-    const microsoftUser = await this.authMicrosoftService.login(payload);
-
-    const accessToken = microsoftUser.accessToken;
-    const expiryDate = microsoftUser.expiryDate;
-    const refreshToken = microsoftUser.refreshToken;
-
-    if (
-      !refreshToken ||
-      !accessToken ||
-      expiryDate === null ||
-      expiryDate === undefined
-    ) {
-      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-    }
-
-    await this.mongodbTransactionService.withTransaction(async (session) => {
-      await this.linkAccount({
-        accessToken,
-        email: microsoftUser.email,
-        expiryDate,
-        externalAccountType: ExternalAccountType.MICROSOFT,
-        foreignId: microsoftUser.id,
-        user,
-        microsoftConnected: true,
-        refreshToken,
-        session,
+      res.clearCookie('microsoft_connection_state', {
+        sameSite: 'lax',
       });
-    });
+
+      const decodedState = decrypt(state);
+      const user = await this.userService.findOneByFilters({
+        _id: new Types.ObjectId(decodedState),
+      });
+
+      if (!user) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
+      const redirectUri = this.configService.getOrThrow<string>(
+        'MICROSOFT_CONNECTION_REDIRECT_URI',
+      );
+
+      const microsoftUser = await this.authMicrosoftService.login({
+        code: payload.code,
+        redirectUri,
+      });
+
+      const accessToken = microsoftUser.accessToken;
+      const expiryDate = microsoftUser.expiryDate;
+      const refreshToken = microsoftUser.refreshToken;
+
+      if (
+        !refreshToken ||
+        !accessToken ||
+        expiryDate === null ||
+        expiryDate === undefined
+      ) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+      await this.mongodbTransactionService.withTransaction(async (session) => {
+        try {
+          await this.linkAccount({
+            accessToken,
+            email: microsoftUser.email,
+            expiryDate,
+            externalAccountType: ExternalAccountType.MICROSOFT,
+            foreignId: microsoftUser.id,
+            user,
+            microsoftConnected: true,
+            refreshToken,
+            session,
+          });
+        } catch (error) {
+          this.logger.error(error);
+          throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+        }
+      });
+      res.redirect(settingsUrl + '?microsoftConnected=true');
+    } catch (error) {
+      this.logger.error(error);
+      res.redirect(settingsUrl + '?microsoftConnected=false');
+    }
   }
 
   async microsoftAuthCallback(
@@ -187,98 +234,141 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const microsoftStateFromCookie = req.cookies['microsoft_state'] as
-      | string
-      | undefined;
+    try {
+      const microsoftStateFromCookie = req.cookies['microsoft_auth_state'] as
+        | string
+        | undefined;
 
-    const skipOauthStateCheck = this.configService.getOrThrow<string>(
-      'SKIP_OAUTH_STATE_CHECK',
-    );
-    if (
-      skipOauthStateCheck !== 'true' &&
-      (!payload.state ||
-        !microsoftStateFromCookie ||
-        payload.state !== microsoftStateFromCookie)
-    ) {
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      const skipOauthStateCheck = this.configService.getOrThrow<string>(
+        'SKIP_OAUTH_STATE_CHECK',
+      );
+      if (
+        skipOauthStateCheck !== 'true' &&
+        (!payload.state ||
+          !microsoftStateFromCookie ||
+          payload.state !== microsoftStateFromCookie)
+      ) {
+        throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      }
+
+      res.clearCookie('microsoft_auth_state', {
+        sameSite: 'lax',
+      });
+
+      const microsoftUser = await this.authMicrosoftService.login(payload);
+
+      const accessToken = microsoftUser.accessToken;
+      const expiryDate = microsoftUser.expiryDate;
+
+      if (!accessToken || expiryDate === null || expiryDate === undefined) {
+        throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      }
+
+      const tokens = await this.authUser({
+        foreignId: microsoftUser.id,
+        email: microsoftUser.email,
+        firstName: microsoftUser.firstName,
+        lastName: microsoftUser.lastName,
+        microsoftConnected: true,
+        accessToken,
+        refreshToken: microsoftUser.refreshToken,
+        expiryDate,
+        externalAccountType: ExternalAccountType.MICROSOFT,
+      });
+
+      this.setCookie({
+        accessToken: tokens.accessToken,
+        accessExpiresAt: tokens.accessExpiresAt,
+        refreshToken: tokens.refreshToken,
+        refreshExpiresAt: tokens.refreshExpiresAt,
+        res,
+      });
+    } finally {
+      res.redirect(this.configService.getOrThrow<string>('WEB_BASE'));
     }
-
-    res.clearCookie('microsoft_state', {
-      sameSite: 'lax',
-    });
-
-    const microsoftUser = await this.authMicrosoftService.login(payload);
-
-    const accessToken = microsoftUser.accessToken;
-    const expiryDate = microsoftUser.expiryDate;
-
-    if (!accessToken || expiryDate === null || expiryDate === undefined) {
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
-    }
-
-    const tokens = await this.authUser({
-      foreignId: microsoftUser.id,
-      email: microsoftUser.email,
-      firstName: microsoftUser.firstName,
-      lastName: microsoftUser.lastName,
-      microsoftConnected: true,
-      accessToken,
-      refreshToken: microsoftUser.refreshToken,
-      expiryDate,
-      externalAccountType: ExternalAccountType.MICROSOFT,
-    });
-
-    this.setCookie({
-      accessToken: tokens.accessToken,
-      accessExpiresAt: tokens.accessExpiresAt,
-      refreshToken: tokens.refreshToken,
-      refreshExpiresAt: tokens.refreshExpiresAt,
-      redirect: true,
-      res,
-    });
   }
 
   async googleConnectionCallback(
     payload: AuthGoogleConnectionCallbackDTO,
+    req: Request,
+    res: Response,
   ): Promise<void> {
     const { state } = payload;
+    const settingsUrl =
+      this.configService.getOrThrow<string>('WEB_BASE') + '/settings';
 
-    const user = await this.userService.findOneByFilters({
-      _id: new Types.ObjectId(state),
-    });
+    try {
+      const googleStateFromCookie = req.cookies['google_connection_state'] as
+        | string
+        | undefined;
 
-    if (!user) {
-      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-    }
+      const skipOauthStateCheck = this.configService.getOrThrow<string>(
+        'SKIP_OAUTH_STATE_CHECK',
+      );
+      if (
+        skipOauthStateCheck !== 'true' &&
+        (!state || !googleStateFromCookie || state !== googleStateFromCookie)
+      ) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
 
-    const googleUser = await this.authGoogleService.login(payload);
-
-    const accessToken = googleUser.accessToken;
-    const expiryDate = googleUser.expiryDate;
-    const refreshToken = googleUser.refreshToken;
-
-    if (
-      !refreshToken ||
-      !accessToken ||
-      expiryDate === null ||
-      expiryDate === undefined
-    ) {
-      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-    }
-
-    await this.mongodbTransactionService.withTransaction(async (session) => {
-      await this.linkAccount({
-        accessToken,
-        email: googleUser.email,
-        expiryDate,
-        externalAccountType: ExternalAccountType.GOOGLE,
-        foreignId: googleUser.id,
-        user,
-        googleConnected: true,
-        refreshToken,
-        session,
+      res.clearCookie('google_connection_state', {
+        sameSite: 'lax',
       });
-    });
+
+      const decodedState = decrypt(state);
+      const user = await this.userService.findOneByFilters({
+        _id: new Types.ObjectId(decodedState),
+      });
+
+      if (!user) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
+      const redirectUri = this.configService.getOrThrow<string>(
+        'GOOGLE_CONNECTION_REDIRECT_URI',
+      );
+
+      const googleUser = await this.authGoogleService.login({
+        code: payload.code,
+        redirectUri,
+      });
+
+      const accessToken = googleUser.accessToken;
+      const expiryDate = googleUser.expiryDate;
+      const refreshToken = googleUser.refreshToken;
+
+      if (
+        !refreshToken ||
+        !accessToken ||
+        expiryDate === null ||
+        expiryDate === undefined
+      ) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+      await this.mongodbTransactionService.withTransaction(async (session) => {
+        try {
+          await this.linkAccount({
+            accessToken,
+            email: googleUser.email,
+            expiryDate,
+            externalAccountType: ExternalAccountType.GOOGLE,
+            foreignId: googleUser.id,
+            user,
+            googleConnected: true,
+            refreshToken,
+            session,
+          });
+        } catch (error) {
+          this.logger.error(error);
+          throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+        }
+      });
+      res.redirect(settingsUrl + '?googleConnected=true');
+    } catch (error) {
+      this.logger.error(error);
+      res.redirect(settingsUrl + '?googleConnected=false');
+    }
   }
 
   private async loginUser(
@@ -399,17 +489,16 @@ export class AuthService {
     } = payload;
 
     if (!refreshToken) {
-      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
     }
 
     await this.externalAccountModel.updateOne(
-      { foreignId, type: externalAccountType },
+      { foreignId, userId: user._id.toString(), type: externalAccountType },
       {
         foreignId,
         refreshTokenEncrypted: encrypt(refreshToken),
         accessTokenEncrypted: encrypt(accessToken),
         expiryDate,
-        userId: user._id.toString(),
         email,
       },
       { session, upsert: true },
@@ -574,7 +663,6 @@ export class AuthService {
       accessExpiresAt,
       refreshToken,
       refreshExpiresAt,
-      redirect: false,
       res,
     });
   }
@@ -636,7 +724,6 @@ export class AuthService {
       refreshToken,
       refreshExpiresAt,
       res,
-      redirect,
     } = payload;
 
     res.cookie('access-token', accessToken, {
@@ -652,10 +739,6 @@ export class AuthService {
       sameSite: 'lax',
       expires: refreshExpiresAt,
     });
-
-    if (redirect) {
-      res.redirect(this.configService.getOrThrow<string>('WEB_BASE'));
-    }
   }
 
   private clearCookie(payload: AuthClearCookieDTO): void {
