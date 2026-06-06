@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   ClientSession,
@@ -7,8 +7,12 @@ import {
   QueryOptions,
   UpdateQuery,
 } from 'mongoose';
+import { ErrorTypes } from 'src/enums/error-types.enum';
+import { UserDTO } from 'src/user/dto/user.dto';
+import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 
 import { ExternalAccountCreateDTO } from '../dto/external-account-create.dto';
+import { ExternalAccountDeleteDTO } from '../dto/external-account-delete.dto';
 import {
   ExternalAccount,
   ExternalAccountDocument,
@@ -19,7 +23,22 @@ export class ExternalAccountService {
   constructor(
     @InjectModel(ExternalAccount.name)
     private readonly externalAccountModel: Model<ExternalAccount>,
+    private readonly userSettingsService: UserSettingsService,
   ) {}
+
+  async delete(payload: ExternalAccountDeleteDTO, user: UserDTO) {
+    const userSettings = await this.userSettingsService.findOneByFilters({
+      userId: user._id.toString(),
+    });
+
+    if (userSettings?.primaryExternalAccount === payload._id.toString()) {
+      throw new BadRequestException(
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_DELETE_IS_PRIMARY,
+      );
+    }
+
+    await this.externalAccountModel.deleteOne({ _id: payload._id });
+  }
 
   async create(
     payload: ExternalAccountCreateDTO,

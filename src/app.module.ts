@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { AuthModule } from './auth/auth.module';
+import { ExternalAccountModule } from './external-account/external-account.module';
 import { GoogleClientModule } from './google-client/google-client.module';
 import { UserModule } from './user/user.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
@@ -34,6 +35,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     GoogleClientModule,
     UserModule,
     UserSettingsModule,
+    ExternalAccountModule,
   ],
 })
 export class AppModule {}
