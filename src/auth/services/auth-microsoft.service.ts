@@ -6,6 +6,7 @@ import axios from 'axios';
 import { Model } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { MicrosoftClientService } from 'src/microsoft-client/microsoft-client.service';
+import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { encrypt } from 'src/utils/encrypt';
 
 import {
@@ -40,6 +41,7 @@ export class AuthMicrosoftService {
 
     private readonly microsoftClientService: MicrosoftClientService,
     private readonly configService: ConfigService,
+    private readonly userSettingsService: UserSettingsService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
@@ -72,19 +74,32 @@ export class AuthMicrosoftService {
   }
 
   private async updateAccessToken(msAccount: ExternalAccount) {
-    const { accessToken, expiryDate, refreshToken } =
-      await this.microsoftClientService.refreshToken(msAccount);
+    try {
+      const { accessToken, expiryDate, refreshToken } =
+        await this.microsoftClientService.refreshToken(msAccount);
 
-    await this.externalAccountModel.updateOne(
-      {
-        _id: msAccount._id,
-      },
-      {
-        accessTokenEncrypted: encrypt(accessToken),
-        refreshTokenEncrypted: encrypt(refreshToken),
-        expiryDate,
-      },
-    );
+      await this.externalAccountModel.updateOne(
+        {
+          _id: msAccount._id,
+        },
+        {
+          accessTokenEncrypted: encrypt(accessToken),
+          refreshTokenEncrypted: encrypt(refreshToken),
+          expiryDate,
+        },
+      );
+    } catch (error) {
+      await this.userSettingsService.updateByFilters(
+        {
+          userId: msAccount.userId,
+          microsoftConnected: true,
+        },
+        {
+          microsoftConnected: false,
+        },
+      );
+      throw error;
+    }
   }
 
   async login(

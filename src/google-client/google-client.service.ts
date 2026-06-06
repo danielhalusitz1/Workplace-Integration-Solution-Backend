@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { ExternalAccount } from 'src/auth/schemas/external-account.schema';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { decrypt } from 'src/utils/encrypt';
 
 import { GoogleClientCreateDTO } from './dto/google-client-create.dto';
@@ -10,7 +11,10 @@ import { GoogleClientCreateDTO } from './dto/google-client-create.dto';
 @Injectable()
 export class GoogleClientService {
   private readonly logger: Logger = new Logger('GoogleClientService');
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly userSettingsService: UserSettingsService,
+  ) {}
 
   create(payload?: GoogleClientCreateDTO): OAuth2Client {
     const { refreshToken, accessToken, expiryDate } = payload ?? {};
@@ -53,7 +57,27 @@ export class GoogleClientService {
       if (e.response?.data?.error === 'invalid_grant') {
         this.logger.error(e);
 
-        throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
+        const userSettings = await this.userSettingsService.updateByFilters(
+          {
+            userId: externalAccount.userId,
+            googleConnected: true,
+          },
+          {
+            googleConnected: false,
+          },
+        );
+
+        if (!userSettings) {
+          throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
+        }
+
+        if (
+          userSettings.primaryExternalAccount === externalAccount._id.toString()
+        ) {
+          throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
+        } else {
+          throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
+        }
       }
       throw e;
     }

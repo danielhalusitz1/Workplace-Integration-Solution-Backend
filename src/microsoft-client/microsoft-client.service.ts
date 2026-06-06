@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import { ExternalAccount } from 'src/auth/schemas/external-account.schema';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { decrypt } from 'src/utils/encrypt';
 
 type MicrosoftClient = {
@@ -25,7 +26,10 @@ export class MicrosoftClientService {
   public msalClient: ConfidentialClientApplication;
   axios: any;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly userSettingsService: UserSettingsService,
+  ) {
     const clientId = this.configService.getOrThrow<string>(
       'MICROSOFT_CLIENT_ID',
     );
@@ -73,21 +77,21 @@ export class MicrosoftClientService {
     externalAccount: ExternalAccount,
     fn: (client: MicrosoftClient) => Promise<T>,
   ): Promise<T> {
-    let accessToken = decrypt(externalAccount.accessTokenEncrypted);
-
-    const expired = externalAccount.expiryDate <= Date.now() + 5 * 60 * 1000;
-
-    if (expired) {
-      const refreshed = await this.refreshToken(externalAccount);
-      accessToken = refreshed.accessToken;
-    }
-
     const createClient = (token: string): MicrosoftClient => ({
       get: <R>(url: string) => this.get<R>(url, token),
       post: <R>(url: string, body: unknown) => this.post<R>(url, body, token),
     });
 
     try {
+      let accessToken = decrypt(externalAccount.accessTokenEncrypted);
+
+      const expired = externalAccount.expiryDate <= Date.now() + 5 * 60 * 1000;
+
+      if (expired) {
+        const refreshed = await this.refreshToken(externalAccount);
+        accessToken = refreshed.accessToken;
+      }
+
       return await fn(createClient(accessToken));
     } catch (error: unknown) {
       const is401 = axios.isAxiosError(error) && error.response?.status === 401;
@@ -103,7 +107,27 @@ export class MicrosoftClientService {
       } catch (refreshError) {
         this.logger.error(refreshError);
 
-        throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
+        const userSettings = await this.userSettingsService.updateByFilters(
+          {
+            userId: externalAccount.userId,
+            microsoftConnected: true,
+          },
+          {
+            microsoftConnected: false,
+          },
+        );
+
+        if (!userSettings) {
+          throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
+        }
+
+        if (
+          userSettings.primaryExternalAccount === externalAccount._id.toString()
+        ) {
+          throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
+        } else {
+          throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
+        }
       }
     }
   }
