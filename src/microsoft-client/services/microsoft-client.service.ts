@@ -1,11 +1,10 @@
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
 import axios, { AxiosResponse } from 'axios';
-import { Model } from 'mongoose';
-import { ExternalAccount } from 'src/auth/schemas/external-account.schema';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
+import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { decrypt } from 'src/utils/encrypt';
 
@@ -29,9 +28,7 @@ export class MicrosoftClientService {
   axios: any;
 
   constructor(
-    @InjectModel(ExternalAccount.name)
-    private readonly externalAccountModel: Model<ExternalAccount>,
-
+    private readonly externalAccountService: ExternalAccountService,
     private readonly configService: ConfigService,
     private readonly userSettingsService: UserSettingsService,
   ) {
@@ -112,7 +109,7 @@ export class MicrosoftClientService {
       } catch (refreshError) {
         this.logger.error(refreshError);
 
-        await this.externalAccountModel.updateOne(
+        await this.externalAccountService.updateByFilters(
           {
             _id: externalAccount._id,
             connected: true,

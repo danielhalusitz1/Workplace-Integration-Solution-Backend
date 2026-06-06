@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import {
   ExternalAccount,
   ExternalAccountDocument,
-} from 'src/auth/schemas/external-account.schema';
+} from 'src/external-account/schemas/external-account.schema';
 
 import { defaultExternalAccountCreate } from '../defaults/default-test-payloads';
 

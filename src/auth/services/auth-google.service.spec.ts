@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ErrorTypes } from 'src/enums/error-types.enum';
-import { GoogleClientService } from 'src/google-client/google-client.service';
+import { GoogleClientService } from 'src/google-client/services/google-client.service';
 import { createMockResponse, setupMongoTestLifecycle } from 'src/test';
 
 import { AuthGoogleService } from './auth-google.service';

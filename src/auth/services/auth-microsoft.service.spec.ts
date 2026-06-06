@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import axios from 'axios';
 import { ErrorTypes } from 'src/enums/error-types.enum';
-import { MicrosoftClientService } from 'src/microsoft-client/microsoft-client.service';
+import { MicrosoftClientService } from 'src/microsoft-client/services/microsoft-client.service';
 import { createMockResponse, setupMongoTestLifecycle } from 'src/test';
 
 import { AuthMicrosoftService } from './auth-microsoft.service';

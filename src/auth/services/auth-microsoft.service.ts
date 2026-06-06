@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
-import { Model } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
-import { MicrosoftClientService } from 'src/microsoft-client/microsoft-client.service';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
+import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
+import { MicrosoftClientService } from 'src/microsoft-client/services/microsoft-client.service';
 import { encrypt } from 'src/utils/encrypt';
 
 import { AuthMicrosoftGetConnectionUrlDTO } from '../dto/auth-microsoft-get-connection-url.dto';
@@ -14,8 +14,7 @@ import {
   AuthMicrosoftLoginResponseDTO,
 } from '../dto/auth-microsoft-login.dto';
 import { AuthMicrosoftUrlDTO } from '../dto/auth-microsoft-url.dto';
-import { ExternalAccountType } from '../enum/external-account-type.enum';
-import { ExternalAccount } from '../schemas/external-account.schema';
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 type TokenResponse = {
   access_token: string;
@@ -36,9 +35,7 @@ export class AuthMicrosoftService {
   private readonly logger = new Logger(AuthMicrosoftService.name);
 
   constructor(
-    @InjectModel(ExternalAccount.name)
-    private readonly externalAccountModel: Model<ExternalAccount>,
-
+    private readonly externalAccountService: ExternalAccountService,
     private readonly microsoftClientService: MicrosoftClientService,
     private readonly configService: ConfigService,
   ) {}
@@ -46,16 +43,13 @@ export class AuthMicrosoftService {
   @Cron(CronExpression.EVERY_10_MINUTES)
   private async updateAccessTokens() {
     this.logger.log('Start update access tokens');
-    const cursor = this.externalAccountModel
-      .find({
-        connected: true,
-        type: ExternalAccountType.MICROSOFT,
-        expiryDate: {
-          $lte: Date.now() + 10 * 60 * 1000,
-        },
-      })
-      .lean()
-      .cursor();
+    const cursor = this.externalAccountService.findByFiltersCursor({
+      connected: true,
+      type: ExternalAccountType.MICROSOFT,
+      expiryDate: {
+        $lte: Date.now() + 10 * 60 * 1000,
+      },
+    });
 
     let promises: Promise<void>[] = [];
     for await (const msAccount of cursor) {
@@ -78,7 +72,7 @@ export class AuthMicrosoftService {
       const { accessToken, expiryDate, refreshToken } =
         await this.microsoftClientService.refreshToken(msAccount);
 
-      await this.externalAccountModel.updateOne(
+      await this.externalAccountService.updateByFilters(
         {
           _id: msAccount._id,
         },
@@ -89,7 +83,7 @@ export class AuthMicrosoftService {
         },
       );
     } catch (error) {
-      await this.externalAccountModel.updateOne(
+      await this.externalAccountService.updateByFilters(
         {
           _id: msAccount._id,
         },

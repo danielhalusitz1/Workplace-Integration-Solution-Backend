@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { ExternalAccountType } from 'src/external-account/enums/external-account-type.enum';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
-import { ExternalAccountType } from '../enum/external-account-type.enum';
 
 @Schema({ ...defaultSchemaOptions, collection: 'external-account' })
 export class ExternalAccount {

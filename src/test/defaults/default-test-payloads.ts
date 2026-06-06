@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
-import { ExternalAccountType } from 'src/auth/enum/external-account-type.enum';
-import { Language } from 'src/auth/enum/language.enum';
+import { ExternalAccountType } from 'src/external-account/enums/external-account-type.enum';
+import { Language } from 'src/user-settings/enums/language.enum';
 import { UserCreateDTO } from 'src/user/dto/user-create.dto';
 import { UserSettingsCreateDTO } from 'src/user-settings/dto/user-settings-create.dto';
 

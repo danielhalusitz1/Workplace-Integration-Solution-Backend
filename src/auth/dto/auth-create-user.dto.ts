@@ -1,6 +1,6 @@
 import { ClientSession } from 'mongoose';
 
-import { ExternalAccountType } from '../enum/external-account-type.enum';
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 export class AuthCreateUserDTO {
   session: ClientSession;

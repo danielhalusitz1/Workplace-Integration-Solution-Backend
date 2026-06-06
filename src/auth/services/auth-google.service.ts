@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Credentials, OAuth2Client } from 'google-auth-library';
-import { Model } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
-import { GoogleClientService } from 'src/google-client/google-client.service';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
+import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
+import { GoogleClientService } from 'src/google-client/services/google-client.service';
 import { encrypt } from 'src/utils/encrypt';
 
 import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
@@ -14,8 +14,7 @@ import {
   AuthGoogleLoginDTO,
   AuthGoogleLoginResponseDTO,
 } from '../dto/auth-google-logn.dto';
-import { ExternalAccountType } from '../enum/external-account-type.enum';
-import { ExternalAccount } from '../schemas/external-account.schema';
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 type GoogleUser = {
   id: string;
@@ -29,26 +28,21 @@ export class AuthGoogleService {
   private readonly logger: Logger = new Logger('AuthGoogleService');
 
   constructor(
-    @InjectModel(ExternalAccount.name)
-    private readonly externalAccountModel: Model<ExternalAccount>,
-
     private readonly googleClientService: GoogleClientService,
     private readonly configService: ConfigService,
+    private readonly externalAccountService: ExternalAccountService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   private async updateAccessTokens() {
     this.logger.log('Start update access tokens');
-    const cursor = this.externalAccountModel
-      .find({
-        type: ExternalAccountType.GOOGLE,
-        connected: true,
-        expiryDate: {
-          $lte: Date.now() + 10 * 60 * 1000,
-        },
-      })
-      .lean()
-      .cursor();
+    const cursor = this.externalAccountService.findByFiltersCursor({
+      type: ExternalAccountType.GOOGLE,
+      connected: true,
+      expiryDate: {
+        $lte: Date.now() + 10 * 60 * 1000,
+      },
+    });
 
     let promises: Promise<void>[] = [];
     for await (const googleAccount of cursor) {
@@ -79,7 +73,7 @@ export class AuthGoogleService {
     const { access_token, expiry_date, refresh_token } = newCredentials;
     if (!access_token || expiry_date === null || expiry_date === undefined) {
       this.logger.error(`Missing tokens at user: ${googleAccount.userId}`);
-      await this.externalAccountModel.updateOne(
+      await this.externalAccountService.updateByFilters(
         {
           _id: googleAccount._id,
         },
@@ -90,7 +84,7 @@ export class AuthGoogleService {
       return;
     }
 
-    await this.externalAccountModel.updateOne(
+    await this.externalAccountService.updateByFilters(
       {
         _id: googleAccount._id,
       },

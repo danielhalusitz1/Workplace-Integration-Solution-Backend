@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { Language } from 'src/auth/enum/language.enum';
+import { Language } from 'src/user-settings/enums/language.enum';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 

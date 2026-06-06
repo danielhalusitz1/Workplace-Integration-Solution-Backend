@@ -1,7 +1,7 @@
 import { ClientSession } from 'mongoose';
 import { UserDocument } from 'src/user/schemas/user.schema';
 
-import { ExternalAccountType } from '../enum/external-account-type.enum';
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 export class AuthUpdateSettingsAndExternalAccountDTO {
   user: UserDocument;

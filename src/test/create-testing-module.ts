@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Test, TestingModule, TestingModuleBuilder } from '@nestjs/testing';
+import { Session, SessionSchema } from 'src/auth/schemas/session.schema';
 import {
   ExternalAccount,
   ExternalAccountSchema,
-} from 'src/auth/schemas/external-account.schema';
-import { Session, SessionSchema } from 'src/auth/schemas/session.schema';
+} from 'src/external-account/schemas/external-account.schema';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';

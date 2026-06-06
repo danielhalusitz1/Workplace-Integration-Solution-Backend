@@ -1,7 +1,7 @@
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
-import { ExternalAccountType } from 'src/auth/enum/external-account-type.enum';
+import { ExternalAccountType } from 'src/external-account/enums/external-account-type.enum';
 import {
   createMockRequest,
   createMockResponse,

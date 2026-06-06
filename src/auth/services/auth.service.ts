@@ -7,6 +7,7 @@ import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { Model, Types } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserDocument } from 'src/user/schemas/user.schema';
@@ -35,8 +36,7 @@ import { AuthMicrosoftAuthCallbackDTO } from '../dto/auth-microsoft-auth-callbac
 import { AuthMicrosoftConnectionCallbackDTO } from '../dto/auth-microsoft-connection-callback.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
-import { ExternalAccountType } from '../enum/external-account-type.enum';
-import { ExternalAccount } from '../schemas/external-account.schema';
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import { Session, SessionDocument } from '../schemas/session.schema';
 import { AuthGoogleService } from './auth-google.service';
 import { AuthMicrosoftService } from './auth-microsoft.service';
@@ -48,9 +48,8 @@ export class AuthService {
   constructor(
     @InjectModel(Session.name)
     private readonly sessionModel: Model<Session>,
-    @InjectModel(ExternalAccount.name)
-    private readonly externalAccountModel: Model<ExternalAccount>,
 
+    private readonly externalAccountService: ExternalAccountService,
     private readonly authGoogleService: AuthGoogleService,
     private readonly authMicrosoftService: AuthMicrosoftService,
     private readonly configService: ConfigService,
@@ -415,7 +414,7 @@ export class AuthService {
       refreshToken,
     } = payload;
 
-    await this.externalAccountModel.updateOne(
+    await this.externalAccountService.updateByFilters(
       {
         userId: user._id.toString(),
         type: externalAccountType,
@@ -469,20 +468,19 @@ export class AuthService {
       session,
     );
 
-    await this.externalAccountModel.create(
-      [
-        {
-          _id: externalAccountMongoId,
-          foreignId,
-          refreshTokenEncrypted: encrypt(refreshToken),
-          accessTokenEncrypted: encrypt(accessToken),
-          expiryDate,
-          userId: user._id.toString(),
-          type: externalAccountType,
-          email,
-        },
-      ],
-      { session },
+    await this.externalAccountService.create(
+      {
+        _id: externalAccountMongoId,
+        foreignId,
+        refreshTokenEncrypted: encrypt(refreshToken),
+        accessTokenEncrypted: encrypt(accessToken),
+        expiryDate,
+        userId: user._id.toString(),
+        type: externalAccountType,
+        email,
+      },
+
+      session,
     );
 
     return user;
@@ -509,11 +507,11 @@ export class AuthService {
       throw new BadRequestException(linkError);
     }
 
-    const existingForeignAccount = await this.externalAccountModel.findOne(
-      { foreignId },
-      null,
-      { session },
-    );
+    const existingForeignAccount =
+      await this.externalAccountService.findOneByFilters(
+        { foreignId },
+        { session },
+      );
 
     if (
       existingForeignAccount &&
@@ -522,11 +520,11 @@ export class AuthService {
       throw new BadRequestException(linkError);
     }
 
-    const existingProviderAccount = await this.externalAccountModel.findOne(
-      { userId: user._id.toString(), type: externalAccountType },
-      null,
-      { session },
-    );
+    const existingProviderAccount =
+      await this.externalAccountService.findOneByFilters(
+        { userId: user._id.toString(), type: externalAccountType },
+        { session },
+      );
 
     if (
       existingProviderAccount &&
@@ -535,7 +533,7 @@ export class AuthService {
       throw new BadRequestException(linkError);
     }
 
-    await this.externalAccountModel.updateOne(
+    await this.externalAccountService.updateByFilters(
       { foreignId, userId: user._id.toString(), type: externalAccountType },
       {
         foreignId,
@@ -556,13 +554,13 @@ export class AuthService {
 
     const transactionResult =
       await this.mongodbTransactionService.withTransaction(async (session) => {
-        const externalAccount = await this.externalAccountModel.findOne(
-          {
-            foreignId,
-          },
-          null,
-          { session },
-        );
+        const externalAccount =
+          await this.externalAccountService.findOneByFilters(
+            {
+              foreignId,
+            },
+            { session },
+          );
 
         let user: null | UserDocument = null;
 
@@ -582,14 +580,14 @@ export class AuthService {
             session,
           });
         } else {
-          const otherExternalAccount = await this.externalAccountModel.findOne(
-            {
-              email,
-              type: { $ne: externalAccountType },
-            },
-            null,
-            { session },
-          );
+          const otherExternalAccount =
+            await this.externalAccountService.findOneByFilters(
+              {
+                email,
+                type: { $ne: externalAccountType },
+              },
+              { session },
+            );
 
           if (otherExternalAccount) {
             user = await this.userService.findOneByFilters(
