@@ -21,14 +21,16 @@ import {
 import { AuthClearCookieDTO } from '../dto/auth-clear-cookie.dto';
 import { AuthCreateUserDTO } from '../dto/auth-create-user.dto';
 import { AuthGetActiveSessionDTO } from '../dto/auth-get-active-session.dto';
+import { AuthGetGoogleAuthUrlDTO } from '../dto/auth-get-google-auth-url.dto';
+import { AuthGetGoogleConnectionUrlDTO } from '../dto/auth-get-google-connection-url.dto';
+import { AuthGetMicrosoftAuthUrlDTO } from '../dto/auth-get-microsoft-auth-url.dto';
+import { AuthGetMicrosoftConnectionUrlDTO } from '../dto/auth-get-microsoft-connection-url.dto';
 import { GetTokensDTO, GetTokensResponseDTO } from '../dto/auth-get-tokens.dto';
 import { AuthGoogleDTO } from '../dto/auth-google.dto';
-import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
 import { AuthLinkAccountDTO } from '../dto/auth-link-account.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
 import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
 import { AuthMicrosoftDTO } from '../dto/auth-microsoft.dto';
-import { AuthMicrosoftUrlDTO } from '../dto/auth-microsoft-url.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
@@ -63,11 +65,19 @@ export class AuthService {
     });
   }
 
-  getGoogleAuthUrl(payload: AuthGoogleAuthUrlDTO) {
+  getGoogleConnectionUrl(payload: AuthGetGoogleConnectionUrlDTO) {
+    return this.authGoogleService.getConnectionUrl(payload);
+  }
+
+  getGoogleAuthUrl(payload: AuthGetGoogleAuthUrlDTO) {
     return this.authGoogleService.getAuthUrl(payload);
   }
 
-  getMicrosoftAuthUrl(payload: AuthMicrosoftUrlDTO) {
+  getMicrosoftConnectionUrl(payload: AuthGetMicrosoftConnectionUrlDTO) {
+    return this.authMicrosoftService.getConnectionUrl(payload);
+  }
+
+  getMicrosoftAuthUrl(payload: AuthGetMicrosoftAuthUrlDTO) {
     return this.authMicrosoftService.getAuthUrl(payload);
   }
 

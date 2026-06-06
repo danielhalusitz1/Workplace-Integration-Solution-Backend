@@ -9,6 +9,7 @@ import { MicrosoftClientService } from 'src/microsoft-client/microsoft-client.se
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { encrypt } from 'src/utils/encrypt';
 
+import { AuthMicrosoftGetConnectionUrlDTO } from '../dto/auth-microsoft-get-connection-url.dto';
 import {
   AuthMicrosoftLoginDTO,
   AuthMicrosoftLoginResponseDTO,
@@ -105,7 +106,7 @@ export class AuthMicrosoftService {
   async login(
     payload: AuthMicrosoftLoginDTO,
   ): Promise<AuthMicrosoftLoginResponseDTO> {
-    const { code } = payload;
+    const { code, redirectUri } = payload;
 
     const clientId = this.configService.getOrThrow<string>(
       'MICROSOFT_CLIENT_ID',
@@ -122,7 +123,7 @@ export class AuthMicrosoftService {
       client_secret: clientSecret,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.getRedirectUrl(),
+      redirect_uri: this.getRedirectUrl(redirectUri),
     });
 
     try {
@@ -170,6 +171,18 @@ export class AuthMicrosoftService {
     }
   }
 
+  async getConnectionUrl(payload: AuthMicrosoftGetConnectionUrlDTO) {
+    const { user } = payload;
+    const redirectUri = this.configService.getOrThrow<string>(
+      'MICROSOFT_CONNECTION_REDIRECT_URI',
+    );
+    return await this.microsoftClientService.msalClient.getAuthCodeUrl({
+      scopes: ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
+      state: user._id,
+      redirectUri: this.getRedirectUrl(redirectUri),
+    });
+  }
+
   async getAuthUrl(payload: AuthMicrosoftUrlDTO) {
     const { res } = payload;
 
@@ -189,10 +202,10 @@ export class AuthMicrosoftService {
     });
   }
 
-  private getRedirectUrl() {
-    const redirectUri = this.configService.getOrThrow<string>(
-      'MICROSOFT_AUTH_REDIRECT_URI',
-    );
+  private getRedirectUrl(uri?: string) {
+    const redirectUri =
+      uri ??
+      this.configService.getOrThrow<string>('MICROSOFT_AUTH_REDIRECT_URI');
     const base = this.configService.getOrThrow<string>('BASE');
     const port = this.configService.getOrThrow<string>('PORT');
 

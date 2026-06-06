@@ -24,6 +24,24 @@ export class AuthController {
   @ApiResponse({
     type: String,
   })
+  @UseGuards(AuthGuard)
+  @Get('google-connection-url')
+  getGoogleConnectionUrl(@User() user: UserDTO) {
+    return this.authService.getGoogleConnectionUrl({ user });
+  }
+
+  @ApiResponse({
+    type: String,
+  })
+  @UseGuards(AuthGuard)
+  @Get('microsoft-connection-url')
+  getMicrosoftConnectionUrl(@User() user: UserDTO) {
+    return this.authService.getMicrosoftConnectionUrl({ user });
+  }
+
+  @ApiResponse({
+    type: String,
+  })
   @Get('google-auth-url')
   getGoogleAuthUrl(@Res({ passthrough: true }) res: Response) {
     return this.authService.getGoogleAuthUrl({ res });

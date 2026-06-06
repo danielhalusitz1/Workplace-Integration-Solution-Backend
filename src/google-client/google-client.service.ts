@@ -22,9 +22,10 @@ export class GoogleClientService {
 
     const clientSecret = this.config.getOrThrow<string>('GOOGLE_CLIENT_SECRET');
 
-    const redirectUri = this.config.getOrThrow<string>(
-      'GOOGLE_AUTH_REDIRECT_URI',
-    );
+    const redirectUri =
+      payload?.redirectUri ??
+      this.config.getOrThrow<string>('GOOGLE_AUTH_REDIRECT_URI');
+
     const base = this.config.getOrThrow<string>('BASE');
     const port = this.config.getOrThrow<string>('PORT');
 

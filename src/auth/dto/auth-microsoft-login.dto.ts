@@ -1,5 +1,6 @@
 export class AuthMicrosoftLoginDTO {
   code: string;
+  redirectUri?: string;
 }
 
 export class AuthMicrosoftLoginResponseDTO {

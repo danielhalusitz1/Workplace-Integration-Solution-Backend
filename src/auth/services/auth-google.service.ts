@@ -10,6 +10,7 @@ import { UserSettingsService } from 'src/user-settings/services/user-settings.se
 import { encrypt } from 'src/utils/encrypt';
 
 import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
+import { AuthGoogleConnectionUrlDTO } from '../dto/auth-google-connection-url.dto';
 import {
   AuthGoogleLoginDTO,
   AuthGoogleLoginResponseDTO,
@@ -109,7 +110,9 @@ export class AuthGoogleService {
     payload: AuthGoogleLoginDTO,
   ): Promise<AuthGoogleLoginResponseDTO> {
     const { code } = payload;
-    const client = this.googleClientService.create();
+    const client = this.googleClientService.create({
+      redirectUri: payload.redirectUri,
+    });
 
     let tokens: Credentials | null = null;
 
@@ -150,6 +153,33 @@ export class AuthGoogleService {
       accessToken: tokens.access_token,
       expiryDate: tokens.expiry_date,
     };
+  }
+
+  getConnectionUrl(payload: AuthGoogleConnectionUrlDTO) {
+    const { user } = payload;
+
+    const redirectUri = this.configService.getOrThrow<string>(
+      'GOOGLE_CONNECTION_REDIRECT_URI',
+    );
+    const base = this.configService.getOrThrow<string>('BASE');
+    const port = this.configService.getOrThrow<string>('PORT');
+
+    const redirectUrl = `${base}:${port}/${redirectUri}`;
+
+    const client = this.googleClientService.create({
+      redirectUri,
+    });
+
+    const url = client.generateAuthUrl({
+      response_type: 'code',
+      scope: ['openid', 'email', 'profile'],
+      access_type: 'offline',
+      redirect_uri: redirectUrl,
+      prompt: 'consent',
+      state: user._id,
+    });
+
+    return url;
   }
 
   getAuthUrl(payload: AuthGoogleAuthUrlDTO) {

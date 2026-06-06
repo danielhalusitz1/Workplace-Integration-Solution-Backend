@@ -1,5 +1,6 @@
 export class AuthGoogleLoginDTO {
   code: string;
+  redirectUri?: string;
 }
 
 export class AuthGoogleLoginResponseDTO {
