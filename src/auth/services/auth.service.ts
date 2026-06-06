@@ -31,6 +31,7 @@ import { AuthLinkAccountDTO } from '../dto/auth-link-account.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
 import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
 import { AuthMicrosoftDTO } from '../dto/auth-microsoft.dto';
+import { AuthMicrosoftConnectionCallbackDTO } from '../dto/auth-microsoft-connection-callback.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
 import { ExternalAccountType } from '../enum/external-account-type.enum';
@@ -73,12 +74,12 @@ export class AuthService {
     return this.authGoogleService.getAuthUrl(payload);
   }
 
-  getMicrosoftConnectionUrl(payload: AuthGetMicrosoftConnectionUrlDTO) {
-    return this.authMicrosoftService.getConnectionUrl(payload);
+  async getMicrosoftConnectionUrl(payload: AuthGetMicrosoftConnectionUrlDTO) {
+    return await this.authMicrosoftService.getConnectionUrl(payload);
   }
 
-  getMicrosoftAuthUrl(payload: AuthGetMicrosoftAuthUrlDTO) {
-    return this.authMicrosoftService.getAuthUrl(payload);
+  async getMicrosoftAuthUrl(payload: AuthGetMicrosoftAuthUrlDTO) {
+    return await this.authMicrosoftService.getAuthUrl(payload);
   }
 
   async google(
@@ -134,6 +135,49 @@ export class AuthService {
       refreshExpiresAt: tokens.refreshExpiresAt,
       redirect: true,
       res,
+    });
+  }
+
+  async microsoftConnectionCallback(
+    payload: AuthMicrosoftConnectionCallbackDTO,
+  ): Promise<void> {
+    const { state } = payload;
+
+    const user = await this.userService.findOneByFilters({
+      _id: new Types.ObjectId(state),
+    });
+
+    if (!user) {
+      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+    }
+
+    const microsoftUser = await this.authMicrosoftService.login(payload);
+
+    const accessToken = microsoftUser.accessToken;
+    const expiryDate = microsoftUser.expiryDate;
+    const refreshToken = microsoftUser.refreshToken;
+
+    if (
+      !refreshToken ||
+      !accessToken ||
+      expiryDate === null ||
+      expiryDate === undefined
+    ) {
+      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+    }
+
+    await this.mongodbTransactionService.withTransaction(async (session) => {
+      await this.linkAccount({
+        accessToken,
+        email: microsoftUser.email,
+        expiryDate,
+        externalAccountType: ExternalAccountType.MICROSOFT,
+        foreignId: microsoftUser.id,
+        user,
+        microsoftConnected: true,
+        refreshToken,
+        session,
+      });
     });
   }
 
@@ -311,22 +355,20 @@ export class AuthService {
     } = payload;
 
     if (!refreshToken) {
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
     }
 
-    await this.externalAccountModel.create(
-      [
-        {
-          foreignId,
-          refreshTokenEncrypted: encrypt(refreshToken),
-          accessTokenEncrypted: encrypt(accessToken),
-          expiryDate,
-          userId: user._id.toString(),
-          type: externalAccountType,
-          email,
-        },
-      ],
-      { session },
+    await this.externalAccountModel.updateOne(
+      { foreignId, type: externalAccountType },
+      {
+        foreignId,
+        refreshTokenEncrypted: encrypt(refreshToken),
+        accessTokenEncrypted: encrypt(accessToken),
+        expiryDate,
+        userId: user._id.toString(),
+        email,
+      },
+      { session, upsert: true },
     );
 
     await this.userSettingsService.updateByFilters(

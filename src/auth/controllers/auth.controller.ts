@@ -15,6 +15,7 @@ import { UserDTO } from 'src/user/dto/user.dto';
 
 import { AuthGoogleDTO } from '../dto/auth-google.dto';
 import { AuthMicrosoftDTO } from '../dto/auth-microsoft.dto';
+import { AuthMicrosoftConnectionCallbackDTO } from '../dto/auth-microsoft-connection-callback.dto';
 import { AuthService } from '../services/auth.service';
 
 @Controller('auth')
@@ -56,7 +57,7 @@ export class AuthController {
   }
 
   @Get('google-auth-callback')
-  async google(
+  google(
     @Query() payload: AuthGoogleDTO,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -65,7 +66,7 @@ export class AuthController {
   }
 
   @Get('microsoft-auth-callback')
-  async microsoft(
+  microsoft(
     @Query() payload: AuthMicrosoftDTO,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -73,8 +74,15 @@ export class AuthController {
     return this.authService.microsoft(payload, req, res);
   }
 
+  @Get('microsoft-connection-callback')
+  microsoftConnectionCallback(
+    @Query() payload: AuthMicrosoftConnectionCallbackDTO,
+  ): Promise<void> {
+    return this.authService.microsoftConnectionCallback(payload);
+  }
+
   @Post('refresh')
-  async refresh(
+  refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
@@ -92,7 +100,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard)
   @Post('logout')
-  async logout(
+  logout(
     @User() user: UserDTO,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -102,7 +110,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard)
   @Post('logout-everywhere')
-  async logoutEverywhere(
+  logoutEverywhere(
     @User() user: UserDTO,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
