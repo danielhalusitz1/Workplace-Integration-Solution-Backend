@@ -90,7 +90,9 @@ describe('AuthService', () => {
     const settings = await userSettingsTestProvider.findByUserId(
       externalAccount!.userId,
     );
-    expect(settings?.googleConnected).toBe(true);
+    expect(settings?.primaryExternalAccount).toBe(
+      externalAccount!._id.toString(),
+    );
 
     const sessions = await sessionTestProvider.findByUserId(
       externalAccount!.userId,

@@ -2,7 +2,7 @@ import { ConfigModule } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { setupMongoTestLifecycle } from 'src/test';
 
-import { GoogleClientService } from '../google-client.service';
+import { GoogleClientService } from './google-client.service';
 
 describe('GoogleClientService', () => {
   const ctx = setupMongoTestLifecycle({

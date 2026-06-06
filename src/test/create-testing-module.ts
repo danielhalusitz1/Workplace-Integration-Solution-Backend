@@ -11,6 +11,7 @@ import {
   ExternalAccount,
   ExternalAccountSchema,
 } from 'src/external-account/schemas/external-account.schema';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
@@ -30,7 +31,11 @@ export const defaultMongooseFeatures = MongooseModule.forFeature([
   { name: ExternalAccount.name, schema: ExternalAccountSchema },
 ]);
 
-export const defaultTestServices = [UserService, UserSettingsService] as const;
+export const defaultTestServices = [
+  UserService,
+  UserSettingsService,
+  ExternalAccountService,
+] as const;
 
 export const defaultTestProviderOverrides: {
   provide: Type<unknown>;
