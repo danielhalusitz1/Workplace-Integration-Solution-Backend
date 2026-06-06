@@ -125,7 +125,7 @@ describe('AuthMicrosoftService', () => {
 
     expect(url).toBe('https://login.microsoftonline.com/auth');
     expect(res.cookie).toHaveBeenCalledWith(
-      'microsoft_state',
+      'microsoft_auth_state',
       expect.any(String),
       expect.objectContaining({ httpOnly: true }),
     );

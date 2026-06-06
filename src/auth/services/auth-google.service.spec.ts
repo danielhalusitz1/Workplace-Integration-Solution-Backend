@@ -84,7 +84,7 @@ describe('AuthGoogleService', () => {
 
     expect(url).toContain('https://accounts.google.com');
     expect(res.cookie).toHaveBeenCalledWith(
-      'google_state',
+      'google_auth_state',
       expect.any(String),
       expect.objectContaining({ httpOnly: true }),
     );
