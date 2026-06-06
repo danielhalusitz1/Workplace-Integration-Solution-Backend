@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ExternalAccountModule } from 'src/external-account/external-account.module';
 import { GoogleClientModule } from 'src/google-client/google-client.module';
 import { MicrosoftClientModule } from 'src/microsoft-client/microsoft-client.module';
-import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { SessionModule } from 'src/session/session.module';
 import { UserModule } from 'src/user/user.module';
 import { UserSettingsModule } from 'src/user-settings/user-settings.module';
@@ -21,12 +20,7 @@ import { AuthMicrosoftService } from './services/auth-microsoft.service';
     UserModule,
     UserSettingsModule,
   ],
-  providers: [
-    AuthService,
-    AuthGoogleService,
-    AuthMicrosoftService,
-    MongodbTransactionService,
-  ],
+  providers: [AuthService, AuthGoogleService, AuthMicrosoftService],
   controllers: [AuthController],
 })
 export class AuthModule {}

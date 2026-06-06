@@ -5,9 +5,11 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import type { Request } from 'express';
+import { IS_PUBLIC_KEY } from 'src/decorators/public.decorator';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { SessionService } from 'src/session/services/session.service';
 import { UserDTO } from 'src/user/dto/user.dto';
@@ -23,9 +25,19 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     try {
       const request = context.switchToHttp().getRequest<RequestWithUser>();
 

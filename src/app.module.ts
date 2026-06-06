@@ -7,13 +7,14 @@ import { ScheduleModule } from '@nestjs/schedule';
 
 import { AuthModule } from './auth/auth.module';
 import { ExternalAccountModule } from './external-account/external-account.module';
-import { GoogleClientModule } from './google-client/google-client.module';
 import { AuthGuard } from './guards/auth.guard';
+import { MongodbTransactionModule } from './mongodb-transaction/mongodb-transaction.module';
 import { UserModule } from './user/user.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    MongodbTransactionModule,
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
@@ -34,7 +35,6 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     }),
     ScheduleModule.forRoot(),
     AuthModule,
-    GoogleClientModule,
     UserModule,
     UserSettingsModule,
     ExternalAccountModule,

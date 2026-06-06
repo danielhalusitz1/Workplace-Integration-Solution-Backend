@@ -716,6 +716,10 @@ export class AuthService {
       | string
       | undefined;
 
+    if (!refreshTokenFromCookie) {
+      throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
+    }
+
     await this.sessionService.deleteOneByFilters({
       userId: user._id.toString(),
       refreshToken: refreshTokenFromCookie,

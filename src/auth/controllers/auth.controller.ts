@@ -1,16 +1,8 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Query,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { Public } from 'src/decorators/public.decorator';
 import { User } from 'src/decorators/user.decorator';
-import { AuthGuard } from 'src/guards/auth.guard';
 import { UserDTO } from 'src/user/dto/user.dto';
 
 import { AuthGoogleAuthCallbackDTO } from '../dto/auth-google-auth-callback.dto';
@@ -26,7 +18,6 @@ export class AuthController {
   @ApiResponse({
     type: String,
   })
-  @UseGuards(AuthGuard)
   @Get('google-connection-url')
   getGoogleConnectionUrl(
     @User() user: UserDTO,
@@ -38,7 +29,6 @@ export class AuthController {
   @ApiResponse({
     type: String,
   })
-  @UseGuards(AuthGuard)
   @Get('microsoft-connection-url')
   getMicrosoftConnectionUrl(
     @User() user: UserDTO,
@@ -50,6 +40,7 @@ export class AuthController {
   @ApiResponse({
     type: String,
   })
+  @Public()
   @Get('google-auth-url')
   getGoogleAuthUrl(@Res({ passthrough: true }) res: Response) {
     return this.authService.getGoogleAuthUrl({ res });
@@ -58,11 +49,13 @@ export class AuthController {
   @ApiResponse({
     type: String,
   })
+  @Public()
   @Get('microsoft-auth-url')
   getMicrosoftAuthUrl(@Res({ passthrough: true }) res: Response) {
     return this.authService.getMicrosoftAuthUrl({ res });
   }
 
+  @Public()
   @Get('google-auth-callback')
   googleAuthCallback(
     @Query() payload: AuthGoogleAuthCallbackDTO,
@@ -72,6 +65,7 @@ export class AuthController {
     return this.authService.googleAuthCallback(payload, req, res);
   }
 
+  @Public()
   @Get('google-connection-callback')
   googleConnectionCallback(
     @Query() payload: AuthGoogleConnectionCallbackDTO,
@@ -81,6 +75,7 @@ export class AuthController {
     return this.authService.googleConnectionCallback(payload, req, res);
   }
 
+  @Public()
   @Get('microsoft-auth-callback')
   microsoftAuthCallback(
     @Query() payload: AuthMicrosoftAuthCallbackDTO,
@@ -90,6 +85,7 @@ export class AuthController {
     return this.authService.microsoftAuthCallback(payload, req, res);
   }
 
+  @Public()
   @Get('microsoft-connection-callback')
   microsoftConnectionCallback(
     @Query() payload: AuthMicrosoftConnectionCallbackDTO,
@@ -99,6 +95,7 @@ export class AuthController {
     return this.authService.microsoftConnectionCallback(payload, req, res);
   }
 
+  @Public()
   @Post('refresh')
   refresh(
     @Req() req: Request,
@@ -110,13 +107,11 @@ export class AuthController {
   @ApiResponse({
     type: UserDTO,
   })
-  @UseGuards(AuthGuard)
   @Get('me')
   me(@User() user: UserDTO): UserDTO {
     return user;
   }
 
-  @UseGuards(AuthGuard)
   @Post('logout')
   logout(
     @User() user: UserDTO,
@@ -126,7 +121,6 @@ export class AuthController {
     return this.authService.logout({ user, res, req });
   }
 
-  @UseGuards(AuthGuard)
   @Post('logout-everywhere')
   logoutEverywhere(
     @User() user: UserDTO,

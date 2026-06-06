@@ -1,6 +1,8 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
+import { IS_PUBLIC_KEY } from 'src/decorators/public.decorator';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import {
   createMockRequest,
@@ -14,12 +16,22 @@ import { AuthGuard } from './auth.guard';
 
 function createMockExecutionContext(
   request: ReturnType<typeof createMockRequest>,
+  options?: { isPublic?: boolean },
 ): ExecutionContext {
+  const handler = function mockHandler() {};
+  const controller = class MockController {};
+
+  if (options?.isPublic) {
+    Reflect.defineMetadata(IS_PUBLIC_KEY, true, handler);
+  }
+
   return {
     switchToHttp: () => ({
       getRequest: () => request,
       getResponse: () => ({}),
     }),
+    getHandler: () => handler,
+    getClass: () => controller,
   } as ExecutionContext;
 }
 
@@ -28,7 +40,7 @@ const JWT_TEST_SECRET = 'test-jwt-secret';
 describe('AuthGuard', () => {
   const ctx = setupMongoTestLifecycle({
     imports: [JwtModule.register({ secret: JWT_TEST_SECRET })],
-    providers: [AuthGuard],
+    providers: [AuthGuard, Reflector],
   });
 
   let authGuard: AuthGuard;
@@ -44,6 +56,14 @@ describe('AuthGuard', () => {
   });
 
   describe('canActivate', () => {
+    it('allows access on public routes without a session', async () => {
+      const result = await authGuard.canActivate(
+        createMockExecutionContext(createMockRequest(), { isPublic: true }),
+      );
+
+      expect(result).toBe(true);
+    });
+
     it('allows access when the JWT and active session are valid', async () => {
       const user = await userTestProvider.create();
       const userDTO = plainToInstance(UserDTO, user, {

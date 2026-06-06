@@ -618,6 +618,21 @@ describe('AuthService', () => {
       expect(sessions).toHaveLength(0);
       expect(res.clearCookie).toHaveBeenCalled();
     });
+
+    it('rejects logout when the refresh-token cookie is missing', async () => {
+      const user = await userTestProvider.create();
+      const userDTO = plainToInstance(UserDTO, user, {
+        excludeExtraneousValues: true,
+      });
+
+      await expect(
+        authService.logout({
+          user: userDTO,
+          req: createMockRequest(),
+          res: createMockResponse(),
+        }),
+      ).rejects.toThrow(new BadRequestException(ErrorTypes.RELOG_REQUIRED));
+    });
   });
 
   describe('logoutEverywhere', () => {
