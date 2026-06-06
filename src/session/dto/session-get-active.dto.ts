@@ -1,4 +1,4 @@
-export class AuthGetActiveSessionDTO {
+export class SessionGetActiveDTO {
   userId: string;
   accessToken: string;
 }

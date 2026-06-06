@@ -7,8 +7,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import type { Request } from 'express';
-import { AuthService } from 'src/auth/services/auth.service';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { SessionService } from 'src/session/services/session.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 
 export interface RequestWithUser extends Request {
@@ -19,7 +19,7 @@ export interface RequestWithUser extends Request {
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly authService: AuthService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -33,7 +33,7 @@ export class AuthGuard implements CanActivate {
 
     const user = await this.jwtService.verifyAsync<UserDTO>(accessToken);
 
-    const activeSession = await this.authService.getActiveSession({
+    const activeSession = await this.sessionService.getActiveSession({
       accessToken,
       userId: user._id,
     });

@@ -9,19 +9,20 @@ import { Model, Types } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
+import { SessionService } from 'src/session/services/session.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserDocument } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { decrypt, encrypt } from 'src/utils/encrypt';
 
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import {
   AuthAuthUserDTO,
   AuthAuthUserResponseDTO,
 } from '../dto/auth-auth-user.dto';
 import { AuthClearCookieDTO } from '../dto/auth-clear-cookie.dto';
 import { AuthCreateUserDTO } from '../dto/auth-create-user.dto';
-import { AuthGetActiveSessionDTO } from '../dto/auth-get-active-session.dto';
 import { AuthGetGoogleAuthUrlDTO } from '../dto/auth-get-google-auth-url.dto';
 import { AuthGetGoogleConnectionUrlDTO } from '../dto/auth-get-google-connection-url.dto';
 import { AuthGetMicrosoftAuthUrlDTO } from '../dto/auth-get-microsoft-auth-url.dto';
@@ -36,8 +37,6 @@ import { AuthMicrosoftAuthCallbackDTO } from '../dto/auth-microsoft-auth-callbac
 import { AuthMicrosoftConnectionCallbackDTO } from '../dto/auth-microsoft-connection-callback.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
-import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
-import { Session, SessionDocument } from '../schemas/session.schema';
 import { AuthGoogleService } from './auth-google.service';
 import { AuthMicrosoftService } from './auth-microsoft.service';
 
@@ -46,9 +45,7 @@ export class AuthService {
   private readonly logger: Logger = new Logger(AuthService.name);
 
   constructor(
-    @InjectModel(Session.name)
-    private readonly sessionModel: Model<Session>,
-
+    private readonly sessionService: SessionService,
     private readonly externalAccountService: ExternalAccountService,
     private readonly authGoogleService: AuthGoogleService,
     private readonly authMicrosoftService: AuthMicrosoftService,
@@ -58,15 +55,6 @@ export class AuthService {
     private readonly mongodbTransactionService: MongodbTransactionService,
     private readonly jwtService: JwtService,
   ) {}
-
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  private async removeExpiredSessions() {
-    const now = new Date();
-
-    await this.sessionModel.deleteMany({
-      refreshExpiresAt: { $lte: now },
-    });
-  }
 
   getGoogleConnectionUrl(payload: AuthGetGoogleConnectionUrlDTO) {
     return this.authGoogleService.getConnectionUrl(payload);
@@ -610,17 +598,15 @@ export class AuthService {
         });
         const tokens = await this.getTokens({ user: userDTO });
 
-        await this.sessionModel.create(
-          [
-            {
-              userId: user._id.toString(),
-              accessToken: tokens.accessToken,
-              accessExpiresAt: tokens.accessExpiresAt,
-              refreshToken: tokens.refreshToken,
-              refreshExpiresAt: tokens.refreshExpiresAt,
-            },
-          ],
-          { session },
+        await this.sessionService.create(
+          {
+            userId: user._id.toString(),
+            accessToken: tokens.accessToken,
+            accessExpiresAt: tokens.accessExpiresAt,
+            refreshToken: tokens.refreshToken,
+            refreshExpiresAt: tokens.refreshExpiresAt,
+          },
+          session,
         );
 
         return {
@@ -643,7 +629,7 @@ export class AuthService {
       throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
 
-    const oldSession = await this.sessionModel.findOne({
+    const oldSession = await this.sessionService.findOneByFilters({
       refreshToken: refreshTokenFromCookie,
     });
 
@@ -668,7 +654,7 @@ export class AuthService {
       tokens;
     const now = new Date();
 
-    const session = await this.sessionModel.findOneAndUpdate(
+    const session = await this.sessionService.findOneAndUpdateByFilters(
       {
         userId: user._id.toString(),
         refreshToken: refreshTokenFromCookie,
@@ -732,7 +718,7 @@ export class AuthService {
       | string
       | undefined;
 
-    await this.sessionModel.deleteOne({
+    await this.sessionService.deleteOneByFilters({
       userId: user._id.toString(),
       refreshToken: refreshTokenFromCookie,
     });
@@ -743,7 +729,9 @@ export class AuthService {
   async logoutEverywhere(payload: AuthLogoutEveryWhereDTO): Promise<void> {
     const { user, res } = payload;
 
-    await this.sessionModel.deleteMany({ userId: user._id.toString() });
+    await this.sessionService.deleteManyByFilters({
+      userId: user._id.toString(),
+    });
 
     this.clearCookie({ res });
   }
@@ -777,18 +765,5 @@ export class AuthService {
 
     res.clearCookie('access-token', { sameSite: 'lax' });
     res.clearCookie('refresh-token', { sameSite: 'lax' });
-  }
-
-  async getActiveSession(
-    payload: AuthGetActiveSessionDTO,
-  ): Promise<SessionDocument | null> {
-    const { accessToken, userId } = payload;
-
-    const now = new Date();
-    return await this.sessionModel.findOne({
-      userId,
-      accessToken,
-      accessExpiresAt: { $gte: now },
-    });
   }
 }

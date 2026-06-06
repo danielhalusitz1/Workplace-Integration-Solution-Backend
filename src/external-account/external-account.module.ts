@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserSettingsModule } from 'src/user-settings/user-settings.module';
 
+import { ExternalAccountController } from './controllers/external-account.controller';
 import {
   ExternalAccount,
   ExternalAccountSchema,
@@ -15,6 +16,7 @@ import { ExternalAccountService } from './services/external-account.service';
     ]),
     UserSettingsModule,
   ],
+  controllers: [ExternalAccountController],
   providers: [ExternalAccountService],
   exports: [ExternalAccountService],
 })
