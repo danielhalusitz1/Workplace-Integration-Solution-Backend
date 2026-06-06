@@ -1,13 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AuthGoogleConnectionCallbackDTO {
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: 'string',
   })
-  code: string;
+  code?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: 'string',
   })
-  state: string;
+  state?: string;
 }

@@ -14,4 +14,5 @@ export class AuthLinkAccountDTO {
   microsoftConnected?: boolean;
   session: ClientSession;
   email: string;
+  connectionFlow?: boolean;
 }

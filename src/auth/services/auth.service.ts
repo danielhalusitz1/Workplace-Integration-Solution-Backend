@@ -90,7 +90,15 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
+    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
+
     try {
+      const { code, state } = payload;
+
+      if (!code) {
+        throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      }
+
       const googleStateFromCookie = req.cookies['google_auth_state'] as
         | string
         | undefined;
@@ -100,9 +108,7 @@ export class AuthService {
       );
       if (
         skipOauthStateCheck !== 'true' &&
-        (!payload.state ||
-          !googleStateFromCookie ||
-          payload.state !== googleStateFromCookie)
+        (!state || !googleStateFromCookie || state !== googleStateFromCookie)
       ) {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
@@ -111,7 +117,7 @@ export class AuthService {
         sameSite: 'lax',
       });
 
-      const googleUser = await this.authGoogleService.login(payload);
+      const googleUser = await this.authGoogleService.login({ code });
 
       const accessToken = googleUser.accessToken;
       const expiryDate = googleUser.expiryDate;
@@ -139,8 +145,11 @@ export class AuthService {
         refreshExpiresAt: tokens.refreshExpiresAt,
         res,
       });
-    } finally {
-      res.redirect(this.configService.getOrThrow<string>('WEB_BASE'));
+      res.redirect(webBase);
+    } catch (error) {
+      this.logger.error(error);
+      res.clearCookie('google_auth_state', { sameSite: 'lax' });
+      res.redirect(webBase);
     }
   }
 
@@ -149,11 +158,16 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const { state } = payload;
     const settingsUrl =
       this.configService.getOrThrow<string>('WEB_BASE') + '/settings';
 
     try {
+      const { code, state } = payload;
+
+      if (!code || !state) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
       const microsoftStateFromCookie = req.cookies[
         'microsoft_connection_state'
       ] as string | undefined;
@@ -188,7 +202,7 @@ export class AuthService {
       );
 
       const microsoftUser = await this.authMicrosoftService.login({
-        code: payload.code,
+        code,
         redirectUri,
       });
 
@@ -216,6 +230,7 @@ export class AuthService {
             microsoftConnected: true,
             refreshToken,
             session,
+            connectionFlow: true,
           });
         } catch (error) {
           this.logger.error(error);
@@ -225,6 +240,7 @@ export class AuthService {
       res.redirect(settingsUrl + '?microsoftConnected=true');
     } catch (error) {
       this.logger.error(error);
+      res.clearCookie('microsoft_connection_state', { sameSite: 'lax' });
       res.redirect(settingsUrl + '?microsoftConnected=false');
     }
   }
@@ -234,7 +250,15 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
+    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
+
     try {
+      const { code, state } = payload;
+
+      if (!code) {
+        throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      }
+
       const microsoftStateFromCookie = req.cookies['microsoft_auth_state'] as
         | string
         | undefined;
@@ -244,9 +268,9 @@ export class AuthService {
       );
       if (
         skipOauthStateCheck !== 'true' &&
-        (!payload.state ||
+        (!state ||
           !microsoftStateFromCookie ||
-          payload.state !== microsoftStateFromCookie)
+          state !== microsoftStateFromCookie)
       ) {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
@@ -255,7 +279,7 @@ export class AuthService {
         sameSite: 'lax',
       });
 
-      const microsoftUser = await this.authMicrosoftService.login(payload);
+      const microsoftUser = await this.authMicrosoftService.login({ code });
 
       const accessToken = microsoftUser.accessToken;
       const expiryDate = microsoftUser.expiryDate;
@@ -283,8 +307,11 @@ export class AuthService {
         refreshExpiresAt: tokens.refreshExpiresAt,
         res,
       });
-    } finally {
-      res.redirect(this.configService.getOrThrow<string>('WEB_BASE'));
+      res.redirect(webBase);
+    } catch (error) {
+      this.logger.error(error);
+      res.clearCookie('microsoft_auth_state', { sameSite: 'lax' });
+      res.redirect(webBase);
     }
   }
 
@@ -293,11 +320,16 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const { state } = payload;
     const settingsUrl =
       this.configService.getOrThrow<string>('WEB_BASE') + '/settings';
 
     try {
+      const { code, state } = payload;
+
+      if (!code || !state) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
       const googleStateFromCookie = req.cookies['google_connection_state'] as
         | string
         | undefined;
@@ -330,7 +362,7 @@ export class AuthService {
       );
 
       const googleUser = await this.authGoogleService.login({
-        code: payload.code,
+        code,
         redirectUri,
       });
 
@@ -358,6 +390,7 @@ export class AuthService {
             googleConnected: true,
             refreshToken,
             session,
+            connectionFlow: true,
           });
         } catch (error) {
           this.logger.error(error);
@@ -367,6 +400,7 @@ export class AuthService {
       res.redirect(settingsUrl + '?googleConnected=true');
     } catch (error) {
       this.logger.error(error);
+      res.clearCookie('google_connection_state', { sameSite: 'lax' });
       res.redirect(settingsUrl + '?googleConnected=false');
     }
   }
@@ -486,10 +520,41 @@ export class AuthService {
       microsoftConnected,
       session,
       email,
+      connectionFlow,
     } = payload;
 
+    const linkError = connectionFlow
+      ? ErrorTypes.CONNECTION_FAILED
+      : ErrorTypes.LOGIN_FAILED;
+
     if (!refreshToken) {
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+      throw new BadRequestException(linkError);
+    }
+
+    const existingForeignAccount = await this.externalAccountModel.findOne(
+      { foreignId },
+      null,
+      { session },
+    );
+
+    if (
+      existingForeignAccount &&
+      existingForeignAccount.userId !== user._id.toString()
+    ) {
+      throw new BadRequestException(linkError);
+    }
+
+    const existingProviderAccount = await this.externalAccountModel.findOne(
+      { userId: user._id.toString(), type: externalAccountType },
+      null,
+      { session },
+    );
+
+    if (
+      existingProviderAccount &&
+      existingProviderAccount.foreignId !== foreignId
+    ) {
+      throw new BadRequestException(linkError);
     }
 
     await this.externalAccountModel.updateOne(

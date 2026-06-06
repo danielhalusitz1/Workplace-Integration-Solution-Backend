@@ -1,9 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import { ExternalAccountType } from 'src/auth/enum/external-account-type.enum';
-import { ErrorTypes } from 'src/enums/error-types.enum';
 import {
   createMockRequest,
   createMockResponse,
@@ -73,7 +71,11 @@ describe('AuthService', () => {
 
     const res = createMockResponse();
 
-    await authService.google({ code: 'auth-code' }, createMockRequest(), res);
+    await authService.googleAuthCallback(
+      { code: 'auth-code', state: 'oauth-state' },
+      createMockRequest({ google_auth_state: 'oauth-state' }),
+      res,
+    );
 
     const externalAccount =
       await externalAccountTestProvider.findByForeignId(foreignId);
@@ -161,7 +163,7 @@ describe('AuthService', () => {
     expect(sessions).toHaveLength(0);
   });
 
-  it('throws when Google login returns no access token', async () => {
+  it('redirects to web base when Google login returns no access token', async () => {
     mockAuthGoogleService.login.mockResolvedValue({
       id: 'google-user-123',
       email: 'user@example.com',
@@ -172,12 +174,14 @@ describe('AuthService', () => {
       expiryDate: Date.now() + 60 * 60 * 1000,
     });
 
-    await expect(
-      authService.google(
-        { code: 'auth-code' },
-        createMockRequest(),
-        createMockResponse(),
-      ),
-    ).rejects.toThrow(new BadRequestException(ErrorTypes.LOGIN_FAILED));
+    const res = createMockResponse();
+
+    await authService.googleAuthCallback(
+      { code: 'auth-code', state: 'oauth-state' },
+      createMockRequest({ google_auth_state: 'oauth-state' }),
+      res,
+    );
+
+    expect(res.redirect).toHaveBeenCalledWith(process.env.WEB_BASE);
   });
 });
