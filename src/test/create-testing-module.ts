@@ -13,6 +13,7 @@ import {
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { Session, SessionSchema } from 'src/session/schemas/session.schema';
+import { SessionService } from 'src/session/services/session.service';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
 import {
@@ -35,6 +36,7 @@ export const defaultTestServices = [
   UserService,
   UserSettingsService,
   ExternalAccountService,
+  SessionService,
 ] as const;
 
 export const defaultTestProviderOverrides: {

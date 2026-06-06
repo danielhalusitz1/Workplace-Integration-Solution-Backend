@@ -3,8 +3,8 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import { ErrorTypes } from 'src/enums/error-types.enum';
-import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { decrypt } from 'src/utils/encrypt';
 

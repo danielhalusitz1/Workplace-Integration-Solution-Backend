@@ -3,18 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Credentials, OAuth2Client } from 'google-auth-library';
 import { ErrorTypes } from 'src/enums/error-types.enum';
-import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { GoogleClientService } from 'src/google-client/services/google-client.service';
 import { encrypt } from 'src/utils/encrypt';
 
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
 import { AuthGoogleConnectionUrlDTO } from '../dto/auth-google-connection-url.dto';
 import {
   AuthGoogleLoginDTO,
   AuthGoogleLoginResponseDTO,
 } from '../dto/auth-google-logn.dto';
-import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 type GoogleUser = {
   id: string;

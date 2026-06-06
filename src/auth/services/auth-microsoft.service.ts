@@ -3,18 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
 import { ErrorTypes } from 'src/enums/error-types.enum';
-import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MicrosoftClientService } from 'src/microsoft-client/services/microsoft-client.service';
 import { encrypt } from 'src/utils/encrypt';
 
+import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import { AuthMicrosoftGetConnectionUrlDTO } from '../dto/auth-microsoft-get-connection-url.dto';
 import {
   AuthMicrosoftLoginDTO,
   AuthMicrosoftLoginResponseDTO,
 } from '../dto/auth-microsoft-login.dto';
 import { AuthMicrosoftUrlDTO } from '../dto/auth-microsoft-url.dto';
-import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 type TokenResponse = {
   access_token: string;
