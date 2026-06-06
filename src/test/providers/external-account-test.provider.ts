@@ -28,4 +28,10 @@ export class ExternalAccountTestProvider {
   async findByUserId(userId: string): Promise<ExternalAccountDocument[]> {
     return this.externalAccountModel.find({ userId });
   }
+
+  async findByForeignId(
+    foreignId: string,
+  ): Promise<ExternalAccountDocument | null> {
+    return this.externalAccountModel.findOne({ foreignId });
+  }
 }
