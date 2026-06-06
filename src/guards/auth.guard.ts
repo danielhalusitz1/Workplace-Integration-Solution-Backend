@@ -28,7 +28,7 @@ export class AuthGuard implements CanActivate {
     const accessToken = this.extractAccessTokenFromCookie(request);
 
     if (!accessToken) {
-      throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
+      throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
     }
 
     const user = await this.jwtService.verifyAsync<UserDTO>(accessToken);
@@ -39,7 +39,7 @@ export class AuthGuard implements CanActivate {
     });
 
     if (!activeSession) {
-      throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
+      throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
     }
 
     request.user = plainToInstance(UserDTO, user, {

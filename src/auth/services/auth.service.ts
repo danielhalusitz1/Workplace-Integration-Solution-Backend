@@ -424,7 +424,7 @@ export class AuthService {
       | undefined;
 
     if (!refreshTokenFromCookie) {
-      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
+      throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
 
     const oldSession = await this.sessionModel.findOne({
@@ -432,7 +432,7 @@ export class AuthService {
     });
 
     if (!oldSession) {
-      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
+      throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
 
     const user = await this.userService.findOneByFilters({
@@ -440,7 +440,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
+      throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
 
     const userDTO = plainToInstance(UserDTO, user, {
@@ -470,7 +470,7 @@ export class AuthService {
     );
 
     if (!session) {
-      throw new BadRequestException(ErrorTypes.RECONNECT_REQUIRED);
+      throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
 
     this.setCookie({
