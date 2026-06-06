@@ -26,11 +26,12 @@ import { AuthGetGoogleConnectionUrlDTO } from '../dto/auth-get-google-connection
 import { AuthGetMicrosoftAuthUrlDTO } from '../dto/auth-get-microsoft-auth-url.dto';
 import { AuthGetMicrosoftConnectionUrlDTO } from '../dto/auth-get-microsoft-connection-url.dto';
 import { GetTokensDTO, GetTokensResponseDTO } from '../dto/auth-get-tokens.dto';
-import { AuthGoogleDTO } from '../dto/auth-google.dto';
+import { AuthGoogleAuthCallbackDTO } from '../dto/auth-google-auth-callback.dto';
+import { AuthGoogleConnectionCallbackDTO } from '../dto/auth-google-connection-callback.dto';
 import { AuthLinkAccountDTO } from '../dto/auth-link-account.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
 import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
-import { AuthMicrosoftDTO } from '../dto/auth-microsoft.dto';
+import { AuthMicrosoftAuthCallbackDTO } from '../dto/auth-microsoft-auth-callback.dto';
 import { AuthMicrosoftConnectionCallbackDTO } from '../dto/auth-microsoft-connection-callback.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
 import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
@@ -82,8 +83,8 @@ export class AuthService {
     return await this.authMicrosoftService.getAuthUrl(payload);
   }
 
-  async google(
-    payload: AuthGoogleDTO,
+  async googleAuthCallback(
+    payload: AuthGoogleAuthCallbackDTO,
     req: Request,
     res: Response,
   ): Promise<void> {
@@ -181,8 +182,8 @@ export class AuthService {
     });
   }
 
-  async microsoft(
-    payload: AuthMicrosoftDTO,
+  async microsoftAuthCallback(
+    payload: AuthMicrosoftAuthCallbackDTO,
     req: Request,
     res: Response,
   ): Promise<void> {
@@ -234,6 +235,49 @@ export class AuthService {
       refreshExpiresAt: tokens.refreshExpiresAt,
       redirect: true,
       res,
+    });
+  }
+
+  async googleConnectionCallback(
+    payload: AuthGoogleConnectionCallbackDTO,
+  ): Promise<void> {
+    const { state } = payload;
+
+    const user = await this.userService.findOneByFilters({
+      _id: new Types.ObjectId(state),
+    });
+
+    if (!user) {
+      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+    }
+
+    const googleUser = await this.authGoogleService.login(payload);
+
+    const accessToken = googleUser.accessToken;
+    const expiryDate = googleUser.expiryDate;
+    const refreshToken = googleUser.refreshToken;
+
+    if (
+      !refreshToken ||
+      !accessToken ||
+      expiryDate === null ||
+      expiryDate === undefined
+    ) {
+      throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+    }
+
+    await this.mongodbTransactionService.withTransaction(async (session) => {
+      await this.linkAccount({
+        accessToken,
+        email: googleUser.email,
+        expiryDate,
+        externalAccountType: ExternalAccountType.GOOGLE,
+        foreignId: googleUser.id,
+        user,
+        googleConnected: true,
+        refreshToken,
+        session,
+      });
     });
   }
 

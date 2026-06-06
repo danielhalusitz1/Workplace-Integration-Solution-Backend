@@ -13,8 +13,9 @@ import { User } from 'src/decorators/user.decorator';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { UserDTO } from 'src/user/dto/user.dto';
 
-import { AuthGoogleDTO } from '../dto/auth-google.dto';
-import { AuthMicrosoftDTO } from '../dto/auth-microsoft.dto';
+import { AuthGoogleAuthCallbackDTO } from '../dto/auth-google-auth-callback.dto';
+import { AuthGoogleConnectionCallbackDTO } from '../dto/auth-google-connection-callback.dto';
+import { AuthMicrosoftAuthCallbackDTO } from '../dto/auth-microsoft-auth-callback.dto';
 import { AuthMicrosoftConnectionCallbackDTO } from '../dto/auth-microsoft-connection-callback.dto';
 import { AuthService } from '../services/auth.service';
 
@@ -57,21 +58,28 @@ export class AuthController {
   }
 
   @Get('google-auth-callback')
-  google(
-    @Query() payload: AuthGoogleDTO,
+  googleAuthCallback(
+    @Query() payload: AuthGoogleAuthCallbackDTO,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    return this.authService.google(payload, req, res);
+    return this.authService.googleAuthCallback(payload, req, res);
+  }
+
+  @Get('google-connection-callback')
+  googleConnectionCallback(
+    @Query() payload: AuthGoogleConnectionCallbackDTO,
+  ): Promise<void> {
+    return this.authService.googleConnectionCallback(payload);
   }
 
   @Get('microsoft-auth-callback')
-  microsoft(
-    @Query() payload: AuthMicrosoftDTO,
+  microsoftAuthCallback(
+    @Query() payload: AuthMicrosoftAuthCallbackDTO,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    return this.authService.microsoft(payload, req, res);
+    return this.authService.microsoftAuthCallback(payload, req, res);
   }
 
   @Get('microsoft-connection-callback')

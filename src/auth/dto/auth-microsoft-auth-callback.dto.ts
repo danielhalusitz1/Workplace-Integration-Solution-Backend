@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
 
-export class AuthGoogleDTO {
+export class AuthMicrosoftAuthCallbackDTO {
   @ApiProperty({
     type: 'string',
   })
