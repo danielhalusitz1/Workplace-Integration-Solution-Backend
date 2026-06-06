@@ -37,7 +37,7 @@ export class AuthController {
     return this.authService.getMicrosoftAuthUrl({ res });
   }
 
-  @Get('google')
+  @Get('google-auth-callback')
   async google(
     @Query() payload: AuthGoogleDTO,
     @Req() req: Request,
@@ -46,7 +46,7 @@ export class AuthController {
     return this.authService.google(payload, req, res);
   }
 
-  @Get('microsoft')
+  @Get('microsoft-auth-callback')
   async microsoft(
     @Query() payload: AuthMicrosoftDTO,
     @Req() req: Request,
