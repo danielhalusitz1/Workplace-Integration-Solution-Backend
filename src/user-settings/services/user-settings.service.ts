@@ -11,8 +11,7 @@ import { ErrorTypes } from 'src/enums/error-types.enum';
 import { UserDTO } from 'src/user/dto/user.dto';
 
 import { UserSettingsCreateDTO } from '../dto/user-settings-create.dto';
-import { UserSettingsSetLanguageDTO } from '../dto/user-settings-set-language.dto';
-import { UserSettingsSetThemeDTO } from '../dto/user-settings-set-theme.dto';
+import { UserSettingsSaveDTO } from '../dto/user-settings-save.dto';
 import {
   UserSettings,
   UserSettingsDocument,
@@ -32,39 +31,32 @@ export class UserSettingsService {
     return (await this.userSettingsModel.create([payload], { session }))[0];
   }
 
-  async setTheme(
-    payload: UserSettingsSetThemeDTO,
-    user: UserDTO,
-  ): Promise<UserSettingsDocument> {
-    const { theme } = payload;
-    const userSettings = await this.updateByFilters(
-      { userId: user._id },
-      { theme },
-      { returnDocument: 'after' },
-    );
+  async getByUserId(user: UserDTO): Promise<UserSettingsDocument> {
+    const userSettings = await this.findOneByFilters({ userId: user._id });
 
     if (!userSettings) {
       throw new BadRequestException(
-        ErrorTypes.USER_SETTINGS_SERVICE_SET_THEME_NOT_SUCCESS,
+        ErrorTypes.USER_SETTINGS_SERVICE_GET_BY_USER_ID_NOT_FOUND,
       );
     }
 
     return userSettings;
   }
 
-  async setLanguage(
-    payload: UserSettingsSetLanguageDTO,
+  async save(
+    payload: UserSettingsSaveDTO,
     user: UserDTO,
   ): Promise<UserSettingsDocument> {
-    const userSettings = await this.userSettingsModel.findOneAndUpdate(
+    const { theme, language } = payload;
+    const userSettings = await this.updateByFilters(
       { userId: user._id },
-      { language: payload.language },
+      { theme, language },
       { returnDocument: 'after' },
     );
 
     if (!userSettings) {
       throw new BadRequestException(
-        ErrorTypes.USER_SETTINGS_SERVICE_SET_LANGUAGE_NOT_SUCCESS,
+        ErrorTypes.USER_SETTINGS_SERVICE_SAVE_NOT_SUCCESS,
       );
     }
 
