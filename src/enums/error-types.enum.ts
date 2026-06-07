@@ -6,4 +6,7 @@ export enum ErrorTypes {
 
   EXTERNAL_ACCOUNT_SERVICE_DELETE_NOT_SUCCESS = 'error.external-account-service.delete.not-success',
   EXTERNAL_ACCOUNT_SERVICE_DELETE_IS_PRIMARY = 'error.external-account-service.delete.is-primary',
+
+  USER_SETTINGS_SERVICE_SET_THEME_NOT_SUCCESS = 'error.user-settings-service.set-theme.not-success',
+  USER_SETTINGS_SERVICE_SET_LANGUAGE_NOT_SUCCESS = 'error.user-settings-service.set-language.not-success',
 }
