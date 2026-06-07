@@ -107,21 +107,15 @@ export class AuthGoogleService {
     });
 
     let tokens: Credentials | null = null;
+    let user: GoogleUser | null = null;
 
     try {
       const getTokenRes = await client.getToken(code);
 
       tokens = getTokenRes.tokens;
-    } catch (error) {
-      this.logger.error(error);
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
-    }
 
-    client.setCredentials(tokens);
+      client.setCredentials(tokens);
 
-    let user: GoogleUser | null = null;
-
-    try {
       const userRes = await client.request<GoogleUser>({
         url: 'https://www.googleapis.com/oauth2/v2/userinfo',
       });
@@ -175,6 +169,7 @@ export class AuthGoogleService {
       response_type: 'code',
       scope: ['openid', 'email', 'profile'],
       access_type: 'offline',
+      prompt: 'consent',
       redirect_uri: redirectUrl,
       state,
     });

@@ -70,7 +70,7 @@ export class AuthMicrosoftService {
   private async updateAccessToken(msAccount: ExternalAccount) {
     try {
       const { accessToken, expiryDate, refreshToken } =
-        await this.microsoftClientService.refreshToken(msAccount);
+        await this.microsoftClientService.refreshTokens(msAccount);
 
       await this.externalAccountService.updateByFilters(
         {

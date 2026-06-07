@@ -89,20 +89,18 @@ export class MicrosoftClientService {
       const expired = externalAccount.expiryDate <= Date.now() + 5 * 60 * 1000;
 
       if (expired) {
-        const refreshed = await this.refreshToken(externalAccount);
+        const refreshed = await this.refreshTokens(externalAccount);
         accessToken = refreshed.accessToken;
       }
 
       return await fn(createClient(accessToken));
-    } catch (error: unknown) {
-      const is401 = axios.isAxiosError(error) && error.response?.status === 401;
-
-      if (!is401) {
+    } catch (error) {
+      if (error?.response?.status !== 401) {
         throw error;
       }
 
       try {
-        const refreshed = await this.refreshToken(externalAccount);
+        const refreshed = await this.refreshTokens(externalAccount);
 
         return await fn(createClient(refreshed.accessToken));
       } catch (refreshError) {
@@ -122,7 +120,7 @@ export class MicrosoftClientService {
           primaryExternalAccount: externalAccount._id.toString(),
         });
 
-        if (userSettings) {
+        if (!userSettings) {
           throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
         } else {
           throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);
@@ -131,7 +129,7 @@ export class MicrosoftClientService {
     }
   }
 
-  async refreshToken(externalAccount: ExternalAccount): Promise<{
+  async refreshTokens(externalAccount: ExternalAccount): Promise<{
     accessToken: string;
     refreshToken: string;
     expiryDate: number;

@@ -142,8 +142,7 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const settingsUrl =
-      this.configService.getOrThrow<string>('WEB_BASE') + '/settings';
+    const settingsUrl = this.configService.getOrThrow<string>('WEB_BASE');
 
     try {
       const { code, state } = payload;
@@ -302,8 +301,7 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const settingsUrl =
-      this.configService.getOrThrow<string>('WEB_BASE') + '/settings';
+    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
 
     try {
       const { code, state } = payload;
@@ -378,11 +376,11 @@ export class AuthService {
           throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
         }
       });
-      res.redirect(settingsUrl + '?googleConnected=true');
+      res.redirect(webBase + '?googleConnected=true');
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_connection_state', { sameSite: 'lax' });
-      res.redirect(settingsUrl + '?googleConnected=false');
+      res.redirect(webBase + '?googleConnected=false');
     }
   }
 
@@ -627,8 +625,10 @@ export class AuthService {
       throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
 
+    const now = new Date();
     const oldSession = await this.sessionService.findOneByFilters({
       refreshToken: refreshTokenFromCookie,
+      refreshExpiresAt: { $gt: now },
     });
 
     if (!oldSession) {
@@ -636,7 +636,7 @@ export class AuthService {
     }
 
     const user = await this.userService.findOneByFilters({
-      _id: new Types.ObjectId(oldSession?.userId),
+      _id: new Types.ObjectId(oldSession.userId),
     });
 
     if (!user) {
@@ -650,7 +650,6 @@ export class AuthService {
     const tokens = await this.getTokens({ user: userDTO });
     const { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt } =
       tokens;
-    const now = new Date();
 
     const session = await this.sessionService.findOneAndUpdateByFilters(
       {

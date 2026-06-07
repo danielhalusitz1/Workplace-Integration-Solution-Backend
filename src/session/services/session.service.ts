@@ -45,7 +45,7 @@ export class SessionService {
     return await this.sessionModel.findOne({
       userId,
       accessToken,
-      accessExpiresAt: { $gte: now },
+      accessExpiresAt: { $gt: now },
     });
   }
 
