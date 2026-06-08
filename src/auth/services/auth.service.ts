@@ -221,11 +221,11 @@ export class AuthService {
           throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
         }
       });
-      res.redirect(settingsUrl + '?microsoftConnected=true');
+      res.redirect(settingsUrl);
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_connection_state', { sameSite: 'lax' });
-      res.redirect(settingsUrl + '?microsoftConnected=false');
+      res.redirect(settingsUrl);
     }
   }
 
@@ -378,11 +378,11 @@ export class AuthService {
           throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
         }
       });
-      res.redirect(webBase + '?googleConnected=true');
+      res.redirect(webBase);
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_connection_state', { sameSite: 'lax' });
-      res.redirect(webBase + '?googleConnected=false');
+      res.redirect(webBase);
     }
   }
 
@@ -403,6 +403,7 @@ export class AuthService {
     await this.externalAccountService.updateByFilters(
       {
         userId: user._id.toString(),
+        foreignId,
         type: externalAccountType,
       },
       {
