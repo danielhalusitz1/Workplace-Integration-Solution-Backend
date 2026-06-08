@@ -3,6 +3,7 @@ import { ExternalAccountType } from 'src/external-account/enums/external-account
 import { UserCreateDTO } from 'src/user/dto/user-create.dto';
 import { UserSettingsCreateDTO } from 'src/user-settings/dto/user-settings-create.dto';
 import { Language } from 'src/user-settings/enums/language.enum';
+import { UserSubscriptionType } from 'src/user-subscription/enums/user-subscription-type.enum';
 
 import { encrypt } from '../../utils/encrypt';
 
@@ -56,6 +57,7 @@ export function defaultExternalAccountCreate(
     refreshTokenEncrypted: string;
     accessTokenEncrypted: string;
     expiryDate: number;
+    connected: boolean;
   }> = {},
 ) {
   return {
@@ -66,6 +68,23 @@ export function defaultExternalAccountCreate(
     refreshTokenEncrypted: encrypt('test-refresh-token'),
     accessTokenEncrypted: encrypt('test-access-token'),
     expiryDate: Date.now() + 60 * 60 * 1000,
+    connected: true,
+    ...overrides,
+  };
+}
+
+export function defaultUserSubscriptionCreate(
+  overrides: Partial<{
+    userId: string;
+    subscriptionType: UserSubscriptionType;
+    startDate: Date;
+    externalAccountPerTypeLimit: number;
+  }> = {},
+) {
+  return {
+    userId: new Types.ObjectId().toString(),
+    subscriptionType: UserSubscriptionType.FREE,
+    startDate: new Date(),
     ...overrides,
   };
 }

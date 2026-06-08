@@ -11,6 +11,7 @@ import {
   SessionTestProvider,
   setupMongoTestLifecycle,
   UserSettingsTestProvider,
+  UserSubscriptionTestProvider,
   UserTestProvider,
 } from 'src/test';
 import { UserDTO } from 'src/user/dto/user.dto';
@@ -52,15 +53,17 @@ describe('AuthService', () => {
   let authService: AuthService;
   let userTestProvider: UserTestProvider;
   let userSettingsTestProvider: UserSettingsTestProvider;
+  let userSubscriptionTestProvider: UserSubscriptionTestProvider;
   let externalAccountTestProvider: ExternalAccountTestProvider;
   let sessionTestProvider: SessionTestProvider;
 
-  const settingsUrl = `${process.env.WEB_BASE}/settings`;
+  const webBase = process.env.WEB_BASE;
 
   beforeEach(() => {
     authService = ctx.module.get(AuthService);
     userTestProvider = ctx.module.get(UserTestProvider);
     userSettingsTestProvider = ctx.module.get(UserSettingsTestProvider);
+    userSubscriptionTestProvider = ctx.module.get(UserSubscriptionTestProvider);
     externalAccountTestProvider = ctx.module.get(ExternalAccountTestProvider);
     sessionTestProvider = ctx.module.get(SessionTestProvider);
     jest.clearAllMocks();
@@ -171,13 +174,11 @@ describe('AuthService', () => {
       expect(externalAccount?.email).toBe(email);
       expect(externalAccount?.type).toBe(ExternalAccountType.GOOGLE);
 
-      const user = await userTestProvider.findById(externalAccount!.userId);
-      expect(user?.firstName).toBe('Jane');
-      expect(user?.lastName).toBe('Doe');
-
       const settings = await userSettingsTestProvider.findByUserId(
         externalAccount!.userId,
       );
+      expect(settings?.firstName).toBe('Jane');
+      expect(settings?.lastName).toBe('Doe');
       expect(settings?.primaryExternalAccount).toBe(
         externalAccount!._id.toString(),
       );
@@ -239,6 +240,10 @@ describe('AuthService', () => {
       const user = await userTestProvider.create();
       const sharedEmail = 'shared@example.com';
 
+      await userSubscriptionTestProvider.create({
+        userId: user._id.toString(),
+        externalAccountPerTypeLimit: 2,
+      });
       await externalAccountTestProvider.create({
         userId: user._id.toString(),
         foreignId: 'microsoft-foreign-id',
@@ -277,7 +282,7 @@ describe('AuthService', () => {
       expect(res.redirect).toHaveBeenCalledWith(process.env.WEB_BASE);
     });
 
-    it('redirects to web base when oauth state does not match', async () => {
+    it('redirects to welcome with auth failure when oauth state does not match', async () => {
       const res = createMockResponse();
 
       await authService.googleAuthCallback(
@@ -287,10 +292,12 @@ describe('AuthService', () => {
       );
 
       expect(mockAuthGoogleService.login).not.toHaveBeenCalled();
-      expect(res.redirect).toHaveBeenCalledWith(process.env.WEB_BASE);
+      expect(res.redirect).toHaveBeenCalledWith(
+        `${webBase}/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`,
+      );
     });
 
-    it('redirects to web base when Google login returns no access token', async () => {
+    it('redirects to welcome with auth failure when Google login returns no access token', async () => {
       mockAuthGoogleService.login.mockResolvedValue({
         id: 'google-user-123',
         email: 'user@example.com',
@@ -309,7 +316,9 @@ describe('AuthService', () => {
         res,
       );
 
-      expect(res.redirect).toHaveBeenCalledWith(process.env.WEB_BASE);
+      expect(res.redirect).toHaveBeenCalledWith(
+        `${webBase}/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`,
+      );
     });
   });
 
@@ -391,7 +400,7 @@ describe('AuthService', () => {
       expect(res.redirect).toHaveBeenCalledWith(process.env.WEB_BASE);
     });
 
-    it('redirects to web base when oauth state does not match', async () => {
+    it('redirects to welcome with auth failure when oauth state does not match', async () => {
       const res = createMockResponse();
 
       await authService.microsoftAuthCallback(
@@ -401,10 +410,12 @@ describe('AuthService', () => {
       );
 
       expect(mockAuthMicrosoftService.login).not.toHaveBeenCalled();
-      expect(res.redirect).toHaveBeenCalledWith(process.env.WEB_BASE);
+      expect(res.redirect).toHaveBeenCalledWith(
+        `${webBase}/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`,
+      );
     });
 
-    it('redirects to web base when Microsoft login returns no access token', async () => {
+    it('redirects to welcome with auth failure when Microsoft login returns no access token', async () => {
       mockAuthMicrosoftService.login.mockResolvedValue({
         id: 'microsoft-user-123',
         email: 'user@outlook.com',
@@ -423,13 +434,18 @@ describe('AuthService', () => {
         res,
       );
 
-      expect(res.redirect).toHaveBeenCalledWith(process.env.WEB_BASE);
+      expect(res.redirect).toHaveBeenCalledWith(
+        `${webBase}/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`,
+      );
     });
   });
 
   describe('googleConnectionCallback', () => {
     it('links a Google account to an existing user', async () => {
       const user = await userTestProvider.create();
+      await userSubscriptionTestProvider.create({
+        userId: user._id.toString(),
+      });
       const state = encrypt(user._id.toString());
 
       mockAuthGoogleService.login.mockResolvedValue({
@@ -457,11 +473,11 @@ describe('AuthService', () => {
       expect(accounts[0].type).toBe(ExternalAccountType.GOOGLE);
       expect(accounts[0].foreignId).toBe('google-connect-id');
       expect(res.redirect).toHaveBeenCalledWith(
-        `${settingsUrl}?googleConnected=true`,
+        `${webBase}?account_connection_result=success`,
       );
     });
 
-    it('redirects to settings with failure when oauth state does not match', async () => {
+    it('redirects with connection failure when oauth state does not match', async () => {
       const user = await userTestProvider.create();
       const state = encrypt(user._id.toString());
       const res = createMockResponse();
@@ -474,7 +490,7 @@ describe('AuthService', () => {
 
       expect(mockAuthGoogleService.login).not.toHaveBeenCalled();
       expect(res.redirect).toHaveBeenCalledWith(
-        `${settingsUrl}?googleConnected=false`,
+        `${webBase}?account_connection_result=${ErrorTypes.CONNECTION_FAILED}`,
       );
     });
   });
@@ -482,6 +498,9 @@ describe('AuthService', () => {
   describe('microsoftConnectionCallback', () => {
     it('links a Microsoft account to an existing user', async () => {
       const user = await userTestProvider.create();
+      await userSubscriptionTestProvider.create({
+        userId: user._id.toString(),
+      });
       const state = encrypt(user._id.toString());
 
       mockAuthMicrosoftService.login.mockResolvedValue({
@@ -509,11 +528,11 @@ describe('AuthService', () => {
       expect(accounts[0].type).toBe(ExternalAccountType.MICROSOFT);
       expect(accounts[0].foreignId).toBe('microsoft-connect-id');
       expect(res.redirect).toHaveBeenCalledWith(
-        `${settingsUrl}?microsoftConnected=true`,
+        `${webBase}?account_connection_result=success`,
       );
     });
 
-    it('redirects to settings with failure when oauth state does not match', async () => {
+    it('redirects with connection failure when oauth state does not match', async () => {
       const user = await userTestProvider.create();
       const state = encrypt(user._id.toString());
       const res = createMockResponse();
@@ -526,7 +545,7 @@ describe('AuthService', () => {
 
       expect(mockAuthMicrosoftService.login).not.toHaveBeenCalled();
       expect(res.redirect).toHaveBeenCalledWith(
-        `${settingsUrl}?microsoftConnected=false`,
+        `${webBase}?account_connection_result=${ErrorTypes.CONNECTION_FAILED}`,
       );
     });
   });

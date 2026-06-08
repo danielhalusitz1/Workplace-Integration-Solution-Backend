@@ -24,7 +24,7 @@ export class UserSubscription {
   @ApiProperty({
     enum: UserSubscriptionType,
   })
-  @Prop({ required: true })
+  @Prop({ required: true, enum: UserSubscriptionType, type: String })
   subscriptionType: UserSubscriptionType;
 
   @ApiProperty({

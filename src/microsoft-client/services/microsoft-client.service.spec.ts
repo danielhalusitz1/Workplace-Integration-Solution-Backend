@@ -54,7 +54,7 @@ describe('MicrosoftClientService', () => {
     jest.clearAllMocks();
   });
 
-  describe('refreshToken', () => {
+  describe('refreshTokens', () => {
     it('returns refreshed tokens from Microsoft', async () => {
       const account = await externalAccountTestProvider.create();
 
@@ -67,7 +67,7 @@ describe('MicrosoftClientService', () => {
         },
       });
 
-      const result = await microsoftClientService.refreshToken(account);
+      const result = await microsoftClientService.refreshTokens(account);
 
       expect(result.accessToken).toBe('new-access-token');
       expect(result.refreshToken).toBe('new-refresh-token');
@@ -144,7 +144,7 @@ describe('MicrosoftClientService', () => {
       expect(attempts).toBe(2);
     });
 
-    it('throws RELOG_REQUIRED when refresh fails on the primary account', async () => {
+    it('throws RECONNECT_REQUIRED when refresh fails on the primary account', async () => {
       const user = await userTestProvider.create();
       const account = await externalAccountTestProvider.create({
         userId: user._id.toString(),
@@ -163,7 +163,9 @@ describe('MicrosoftClientService', () => {
         microsoftClientService.run(account, async () => {
           throw createAxios401Error();
         }),
-      ).rejects.toThrow(new UnauthorizedException(ErrorTypes.RELOG_REQUIRED));
+      ).rejects.toThrow(
+        new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED),
+      );
 
       const updated = await externalAccountTestProvider.findByForeignId(
         account.foreignId,
@@ -171,7 +173,7 @@ describe('MicrosoftClientService', () => {
       expect(updated?.connected).toBe(false);
     });
 
-    it('throws RECONNECT_REQUIRED when refresh fails on a non-primary account', async () => {
+    it('throws RELOG_REQUIRED when refresh fails on a non-primary account', async () => {
       const user = await userTestProvider.create();
       const primaryAccount = await externalAccountTestProvider.create({
         userId: user._id.toString(),
@@ -196,9 +198,7 @@ describe('MicrosoftClientService', () => {
         microsoftClientService.run(secondaryAccount, async () => {
           throw createAxios401Error();
         }),
-      ).rejects.toThrow(
-        new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED),
-      );
+      ).rejects.toThrow(new UnauthorizedException(ErrorTypes.RELOG_REQUIRED));
 
       const updated = await externalAccountTestProvider.findByForeignId(
         secondaryAccount.foreignId,

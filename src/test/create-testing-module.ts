@@ -21,6 +21,11 @@ import {
   UserSettingsSchema,
 } from 'src/user-settings/schemas/user-settings.schema';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
+import {
+  UserSubscription,
+  UserSubscriptionSchema,
+} from 'src/user-subscription/schemas/user-subscription.schema';
+import { UserSubscriptionService } from 'src/user-subscription/services/user-subscription.service';
 
 import { MockMongodbTransactionService } from './mocks/mongodb-transaction.mock';
 import { schemaTestProviders } from './providers';
@@ -30,11 +35,13 @@ export const defaultMongooseFeatures = MongooseModule.forFeature([
   { name: UserSettings.name, schema: UserSettingsSchema },
   { name: Session.name, schema: SessionSchema },
   { name: ExternalAccount.name, schema: ExternalAccountSchema },
+  { name: UserSubscription.name, schema: UserSubscriptionSchema },
 ]);
 
 export const defaultTestServices = [
   UserService,
   UserSettingsService,
+  UserSubscriptionService,
   ExternalAccountService,
   SessionService,
 ] as const;
