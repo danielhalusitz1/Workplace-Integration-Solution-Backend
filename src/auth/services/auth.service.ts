@@ -134,7 +134,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?auth_result=${error.message}`);
+      res.redirect(webBase + `/welcome?auth_result=${error.message}`);
     }
   }
 
@@ -292,7 +292,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?auth_result=${error.message}`);
+      res.redirect(webBase + `/welcome?auth_result=${error.message}`);
     }
   }
 
@@ -453,22 +453,17 @@ export class AuthService {
       session,
     });
 
-    try {
-      await this.externalAccountService.create({
-        _id: externalAccountMongoId,
-        foreignId,
-        refreshTokenEncrypted: encrypt(refreshToken),
-        accessTokenEncrypted: encrypt(accessToken),
-        expiryDate,
-        userId: user._id.toString(),
-        type: externalAccountType,
-        email,
-        session,
-      });
-    } catch (error) {
-      this.logger.error(error);
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
-    }
+    await this.externalAccountService.create({
+      _id: externalAccountMongoId,
+      foreignId,
+      refreshTokenEncrypted: encrypt(refreshToken),
+      accessTokenEncrypted: encrypt(accessToken),
+      expiryDate,
+      userId: user._id.toString(),
+      type: externalAccountType,
+      email,
+      session,
+    });
 
     return user;
   }
@@ -484,7 +479,6 @@ export class AuthService {
           await this.externalAccountService.findOneByFilters(
             {
               foreignId,
-              connected: true,
             },
             { session },
           );
@@ -492,6 +486,9 @@ export class AuthService {
         let user: null | UserDocument = null;
 
         if (externalAccount) {
+          if (!externalAccount.connected) {
+            throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+          }
           user = await this.userService.findOneByFilters(
             {
               _id: new Types.ObjectId(externalAccount.userId),
