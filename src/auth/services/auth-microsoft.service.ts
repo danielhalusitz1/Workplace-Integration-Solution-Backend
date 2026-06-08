@@ -181,6 +181,7 @@ export class AuthMicrosoftService {
       scopes: ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
       state,
       redirectUri: this.getRedirectUrl(redirectUri),
+      prompt: 'consent',
     });
   }
 
@@ -200,6 +201,7 @@ export class AuthMicrosoftService {
       scopes: ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
       state,
       redirectUri: this.getRedirectUrl(),
+      prompt: 'consent',
     });
   }
 
