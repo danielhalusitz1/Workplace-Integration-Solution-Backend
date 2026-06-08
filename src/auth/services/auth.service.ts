@@ -135,7 +135,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase);
+      res.redirect(webBase + `?result=${error.message}`);
     }
   }
 
@@ -144,7 +144,7 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const settingsUrl = this.configService.getOrThrow<string>('WEB_BASE');
+    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
 
     try {
       const { code, state } = payload;
@@ -204,28 +204,23 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
       await this.mongodbTransactionService.withTransaction(async (session) => {
-        try {
-          await this.linkAccount({
-            accessToken,
-            email: microsoftUser.email,
-            expiryDate,
-            externalAccountType: ExternalAccountType.MICROSOFT,
-            foreignId: microsoftUser.id,
-            user,
-            refreshToken,
-            session,
-            connectionFlow: true,
-          });
-        } catch (error) {
-          this.logger.error(error);
-          throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-        }
+        await this.linkAccount({
+          accessToken,
+          email: microsoftUser.email,
+          expiryDate,
+          externalAccountType: ExternalAccountType.MICROSOFT,
+          foreignId: microsoftUser.id,
+          user,
+          refreshToken,
+          session,
+          connectionFlow: true,
+        });
       });
-      res.redirect(settingsUrl);
+      res.redirect(webBase + '?result=success');
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_connection_state', { sameSite: 'lax' });
-      res.redirect(settingsUrl);
+      res.redirect(webBase + `?result=${error.message}`);
     }
   }
 
@@ -294,7 +289,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase);
+      res.redirect(webBase + `?result=${error.message}`);
     }
   }
 
@@ -361,28 +356,23 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
       await this.mongodbTransactionService.withTransaction(async (session) => {
-        try {
-          await this.linkAccount({
-            accessToken,
-            email: googleUser.email,
-            expiryDate,
-            externalAccountType: ExternalAccountType.GOOGLE,
-            foreignId: googleUser.id,
-            user,
-            refreshToken,
-            session,
-            connectionFlow: true,
-          });
-        } catch (error) {
-          this.logger.error(error);
-          throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-        }
+        await this.linkAccount({
+          accessToken,
+          email: googleUser.email,
+          expiryDate,
+          externalAccountType: ExternalAccountType.GOOGLE,
+          foreignId: googleUser.id,
+          user,
+          refreshToken,
+          session,
+          connectionFlow: true,
+        });
       });
-      res.redirect(webBase);
+      res.redirect(webBase + '?result=success');
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_connection_state', { sameSite: 'lax' });
-      res.redirect(webBase);
+      res.redirect(webBase + `?result=${error.message}`);
     }
   }
 
@@ -506,6 +496,26 @@ export class AuthService {
       existingForeignAccount.userId !== user._id.toString()
     ) {
       throw new BadRequestException(linkError);
+    }
+
+    const userSubscription = await this.userSubscriptionService.getByUserId({
+      userId: user._id.toString(),
+      session,
+    });
+
+    const externalAccountCount =
+      await this.externalAccountService.countDocumentsByFilters(
+        {
+          userId: user._id.toString(),
+          type: externalAccountType,
+        },
+        session,
+      );
+
+    if (userSubscription.externalAccountPerTypeLimit <= externalAccountCount) {
+      throw new BadRequestException(
+        ErrorTypes.AUTH_LINK_ACCOUNT_CONNECTION_LIMIT_REACHED,
+      );
     }
 
     await this.externalAccountService.updateByFilters(

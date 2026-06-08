@@ -58,13 +58,13 @@ export class UserSubscription {
     type: 'number',
   })
   @Prop({ default: 1 })
-  externalAccountPerType: number;
+  externalAccountPerTypeLimit: number;
 
   @ApiProperty({
     type: 'number',
   })
   @Prop({ default: 10 })
-  maximumAIAssistantQuestions: number;
+  aIAssistantQuestionsLimit: number;
 
   @ApiProperty({
     type: 'boolean',

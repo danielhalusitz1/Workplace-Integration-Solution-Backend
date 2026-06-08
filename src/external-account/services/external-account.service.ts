@@ -63,25 +63,6 @@ export class ExternalAccountService {
     payload: ExternalAccountCreateDTO,
     session?: ClientSession,
   ): Promise<ExternalAccountDocument> {
-    const userSubscription = await this.userSubscriptionService.getByUserId({
-      userId: payload.userId,
-      session,
-    });
-
-    const externalAccountCount = await this.externalAccountModel.countDocuments(
-      {
-        userId: payload.userId,
-        type: payload.type,
-      },
-      { session },
-    );
-
-    if (userSubscription.externalAccountPerType <= externalAccountCount) {
-      throw new BadRequestException(
-        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CREATE_EXTERNAL_ACCOUNT_PER_TYPE_LIMIT_REACHED,
-      );
-    }
-
     return (await this.externalAccountModel.create([payload], { session }))[0];
   }
 
@@ -115,5 +96,12 @@ export class ExternalAccountService {
     options?: QueryOptions<ExternalAccount>,
   ): Promise<ExternalAccountDocument | null> {
     return this.externalAccountModel.findOneAndUpdate(filters, update, options);
+  }
+
+  async countDocumentsByFilters(
+    filters: QueryFilter<ExternalAccount>,
+    session?: ClientSession,
+  ) {
+    return await this.externalAccountModel.countDocuments(filters, { session });
   }
 }
