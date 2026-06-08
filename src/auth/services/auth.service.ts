@@ -438,18 +438,14 @@ export class AuthService {
 
     const externalAccountMongoId = new Types.ObjectId();
 
-    const user = await this.userService.create(
-      {
-        firstName,
-        lastName,
-      },
-      session,
-    );
+    const user = await this.userService.create({}, session);
 
     await this.userSettingsService.create(
       {
         userId: user._id.toString(),
         primaryExternalAccount: externalAccountMongoId.toString(),
+        firstName,
+        lastName,
       },
       session,
     );

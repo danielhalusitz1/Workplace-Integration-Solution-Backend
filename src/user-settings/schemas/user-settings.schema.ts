@@ -21,6 +21,20 @@ export class UserSettings {
 
   @ApiProperty({
     type: 'string',
+    nullable: true,
+  })
+  @Prop()
+  firstName?: string;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+  })
+  @Prop()
+  lastName?: string;
+
+  @ApiProperty({
+    type: 'string',
   })
   @Prop({
     required: true,

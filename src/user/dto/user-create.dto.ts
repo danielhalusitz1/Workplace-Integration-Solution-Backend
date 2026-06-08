@@ -6,9 +6,4 @@ export class UserCreateDTO extends OmitType(User, [
   '_id',
   'createdAt',
   'updatedAt',
-]) {
-  googleId?: string;
-  microsoftId?: string;
-  firstName?: string;
-  lastName?: string;
-}
+]) {}

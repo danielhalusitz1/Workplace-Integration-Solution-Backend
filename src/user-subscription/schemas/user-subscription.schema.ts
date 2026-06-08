@@ -64,7 +64,7 @@ export class UserSubscription {
     type: 'number',
   })
   @Prop({ default: 10 })
-  maximumAIAssistantThreads: number;
+  maximumAIAssistantQuestions: number;
 
   @ApiProperty({
     type: 'boolean',

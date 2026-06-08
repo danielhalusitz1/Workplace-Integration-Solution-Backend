@@ -1,4 +1,4 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
@@ -6,12 +6,6 @@ import { defaultSchemaOptions } from '../../defaults/default-schema-options';
 @Schema({ ...defaultSchemaOptions, collection: 'user' })
 export class User {
   _id: Types.ObjectId;
-
-  @Prop()
-  firstName?: string;
-
-  @Prop()
-  lastName?: string;
 
   createdAt: Date;
 

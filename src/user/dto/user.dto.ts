@@ -10,16 +10,4 @@ export class UserDTO {
   @Expose()
   @Transform(({ obj }: { obj: User }) => obj._id.toString())
   _id: string;
-
-  @ApiProperty({
-    type: 'string',
-  })
-  @Expose()
-  firstName?: string;
-
-  @ApiProperty({
-    type: 'string',
-  })
-  @Expose()
-  lastName?: string;
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 
 import { Language } from '../enums/language.enum';
 import { Theme } from '../enums/theme.enum';
@@ -16,4 +16,20 @@ export class UserSettingsSaveDTO {
   })
   @IsEnum(Language)
   language: Language;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+  })
+  @IsString()
+  @IsOptional()
+  lastName?: string;
 }

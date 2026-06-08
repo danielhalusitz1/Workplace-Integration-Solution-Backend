@@ -47,10 +47,15 @@ export class UserSettingsService {
     payload: UserSettingsSaveDTO,
     user: UserDTO,
   ): Promise<UserSettingsDocument> {
-    const { theme, language } = payload;
+    const { theme, language, firstName, lastName } = payload;
     const userSettings = await this.updateByFilters(
       { userId: user._id },
-      { theme, language },
+      {
+        theme,
+        language,
+        ...(firstName ? { firstName } : {}),
+        ...(lastName ? { lastName } : {}),
+      },
       { returnDocument: 'after' },
     );
 
