@@ -12,6 +12,7 @@ import { UserDTO } from 'src/user/dto/user.dto';
 import { UserDocument } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
+import { UserSubscriptionService } from 'src/user-subscription/services/user-subscription.service';
 import { decrypt, encrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
@@ -52,6 +53,7 @@ export class AuthService {
     private readonly userSettingsService: UserSettingsService,
     private readonly mongodbTransactionService: MongodbTransactionService,
     private readonly jwtService: JwtService,
+    private readonly userSubscriptionService: UserSubscriptionService,
   ) {}
 
   getGoogleConnectionUrl(payload: AuthGetGoogleConnectionUrlDTO) {
@@ -452,6 +454,11 @@ export class AuthService {
       session,
     );
 
+    await this.userSubscriptionService.createFree({
+      userId: user._id.toString(),
+      session,
+    });
+
     await this.externalAccountService.create(
       {
         _id: externalAccountMongoId,
@@ -500,19 +507,6 @@ export class AuthService {
     if (
       existingForeignAccount &&
       existingForeignAccount.userId !== user._id.toString()
-    ) {
-      throw new BadRequestException(linkError);
-    }
-
-    const existingProviderAccount =
-      await this.externalAccountService.findOneByFilters(
-        { userId: user._id.toString(), type: externalAccountType },
-        { session },
-      );
-
-    if (
-      existingProviderAccount &&
-      existingProviderAccount.foreignId !== foreignId
     ) {
       throw new BadRequestException(linkError);
     }

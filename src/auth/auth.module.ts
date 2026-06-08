@@ -5,6 +5,7 @@ import { MicrosoftClientModule } from 'src/microsoft-client/microsoft-client.mod
 import { SessionModule } from 'src/session/session.module';
 import { UserModule } from 'src/user/user.module';
 import { UserSettingsModule } from 'src/user-settings/user-settings.module';
+import { UserSubscriptionModule } from 'src/user-subscription/user-subscription.module';
 
 import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
@@ -19,6 +20,7 @@ import { AuthMicrosoftService } from './services/auth-microsoft.service';
     MicrosoftClientModule,
     UserModule,
     UserSettingsModule,
+    UserSubscriptionModule,
   ],
   providers: [AuthService, AuthGoogleService, AuthMicrosoftService],
   controllers: [AuthController],

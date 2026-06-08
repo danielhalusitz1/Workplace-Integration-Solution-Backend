@@ -10,9 +10,11 @@ import {
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
+import { UserSubscriptionService } from 'src/user-subscription/services/user-subscription.service';
 
 import { ExternalAccountCreateDTO } from '../dto/external-account-create.dto';
 import { ExternalAccountDeleteDTO } from '../dto/external-account-delete.dto';
+import { ExternalAccountListDTO } from '../dto/external-account-list.dto';
 import {
   ExternalAccount,
   ExternalAccountDocument,
@@ -24,7 +26,15 @@ export class ExternalAccountService {
     @InjectModel(ExternalAccount.name)
     private readonly externalAccountModel: Model<ExternalAccount>,
     private readonly userSettingsService: UserSettingsService,
+    private readonly userSubscriptionService: UserSubscriptionService,
   ) {}
+
+  async list(payload: ExternalAccountListDTO) {
+    const { userId } = payload;
+    return this.externalAccountModel
+      .find({ userId })
+      .sort({ type: 1, createdAt: -1 });
+  }
 
   async delete(payload: ExternalAccountDeleteDTO, user: UserDTO) {
     const userSettings = await this.userSettingsService.findOneByFilters({
@@ -53,6 +63,25 @@ export class ExternalAccountService {
     payload: ExternalAccountCreateDTO,
     session?: ClientSession,
   ): Promise<ExternalAccountDocument> {
+    const userSubscription = await this.userSubscriptionService.getByUserId({
+      userId: payload.userId,
+      session,
+    });
+
+    const externalAccountCount = await this.externalAccountModel.countDocuments(
+      {
+        userId: payload.userId,
+        type: payload.type,
+      },
+      { session },
+    );
+
+    if (userSubscription.externalAccountPerType <= externalAccountCount) {
+      throw new BadRequestException(
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CREATE_EXTERNAL_ACCOUNT_PER_TYPE_LIMIT_REACHED,
+      );
+    }
+
     return (await this.externalAccountModel.create([payload], { session }))[0];
   }
 

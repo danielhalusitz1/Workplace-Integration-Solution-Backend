@@ -11,6 +11,8 @@ import { AuthGuard } from './guards/auth.guard';
 import { MongodbTransactionModule } from './mongodb-transaction/mongodb-transaction.module';
 import { UserModule } from './user/user.module';
 import { UserSettingsModule } from './user-settings/user-settings.module';
+import { UserSubscriptionModule } from './user-subscription/user-subscription.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -37,6 +39,7 @@ import { UserSettingsModule } from './user-settings/user-settings.module';
     AuthModule,
     UserModule,
     UserSettingsModule,
+    UserSubscriptionModule,
     ExternalAccountModule,
   ],
   providers: [
