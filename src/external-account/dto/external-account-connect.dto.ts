@@ -1,14 +1,15 @@
 import { ClientSession, Types } from 'mongoose';
-import { ExternalAccountType } from 'src/external-account/enums/external-account-type.enum';
 
-export class ExternalAccountCreateDTO {
+import { ExternalAccountType } from '../enums/external-account-type.enum';
+
+export class ExternalAccountConnectDTO {
   _id?: Types.ObjectId;
   userId: string;
   foreignId: string;
   email: string;
   type: ExternalAccountType;
-  refreshTokenEncrypted: string;
-  accessTokenEncrypted: string;
+  accessToken: string;
+  refreshToken: string;
   expiryDate: number;
   session?: ClientSession;
 }

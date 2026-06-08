@@ -29,7 +29,6 @@ import { AuthGetMicrosoftConnectionUrlDTO } from '../dto/auth-get-microsoft-conn
 import { GetTokensDTO, GetTokensResponseDTO } from '../dto/auth-get-tokens.dto';
 import { AuthGoogleAuthCallbackDTO } from '../dto/auth-google-auth-callback.dto';
 import { AuthGoogleConnectionCallbackDTO } from '../dto/auth-google-connection-callback.dto';
-import { AuthLinkAccountDTO } from '../dto/auth-link-account.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
 import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
 import { AuthMicrosoftAuthCallbackDTO } from '../dto/auth-microsoft-auth-callback.dto';
@@ -203,17 +202,21 @@ export class AuthService {
       ) {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
+
+      if (!refreshToken) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
       await this.mongodbTransactionService.withTransaction(async (session) => {
-        await this.linkAccount({
+        await this.externalAccountService.connect({
+          foreignId: microsoftUser.id,
           accessToken,
           email: microsoftUser.email,
           expiryDate,
-          externalAccountType: ExternalAccountType.MICROSOFT,
-          foreignId: microsoftUser.id,
-          user,
           refreshToken,
+          type: ExternalAccountType.MICROSOFT,
+          userId: user._id.toString(),
           session,
-          connectionFlow: true,
         });
       });
       res.redirect(webBase + '?account_connection_result=success');
@@ -355,17 +358,21 @@ export class AuthService {
       ) {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
+
+      if (!refreshToken) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
       await this.mongodbTransactionService.withTransaction(async (session) => {
-        await this.linkAccount({
+        await this.externalAccountService.connect({
+          foreignId: googleUser.id,
           accessToken,
           email: googleUser.email,
           expiryDate,
-          externalAccountType: ExternalAccountType.GOOGLE,
-          foreignId: googleUser.id,
-          user,
           refreshToken,
+          type: ExternalAccountType.GOOGLE,
+          userId: user._id.toString(),
           session,
-          connectionFlow: true,
         });
       });
       res.redirect(webBase + '?account_connection_result=success');
@@ -446,8 +453,8 @@ export class AuthService {
       session,
     });
 
-    await this.externalAccountService.create(
-      {
+    try {
+      await this.externalAccountService.create({
         _id: externalAccountMongoId,
         foreignId,
         refreshTokenEncrypted: encrypt(refreshToken),
@@ -456,80 +463,14 @@ export class AuthService {
         userId: user._id.toString(),
         type: externalAccountType,
         email,
-      },
-
-      session,
-    );
+        session,
+      });
+    } catch (error) {
+      this.logger.error(error);
+      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+    }
 
     return user;
-  }
-
-  private async linkAccount(payload: AuthLinkAccountDTO) {
-    const {
-      refreshToken,
-      foreignId,
-      accessToken,
-      expiryDate,
-      user,
-      externalAccountType,
-      session,
-      email,
-      connectionFlow,
-    } = payload;
-
-    const linkError = connectionFlow
-      ? ErrorTypes.CONNECTION_FAILED
-      : ErrorTypes.LOGIN_FAILED;
-
-    if (!refreshToken) {
-      throw new BadRequestException(linkError);
-    }
-
-    const existingForeignAccount =
-      await this.externalAccountService.findOneByFilters(
-        { foreignId },
-        { session },
-      );
-
-    if (
-      existingForeignAccount &&
-      existingForeignAccount.userId !== user._id.toString()
-    ) {
-      throw new BadRequestException(linkError);
-    }
-
-    const userSubscription = await this.userSubscriptionService.getByUserId({
-      userId: user._id.toString(),
-      session,
-    });
-
-    const externalAccountCount =
-      await this.externalAccountService.countDocumentsByFilters(
-        {
-          userId: user._id.toString(),
-          type: externalAccountType,
-        },
-        session,
-      );
-
-    if (userSubscription.externalAccountPerTypeLimit <= externalAccountCount) {
-      throw new BadRequestException(
-        ErrorTypes.AUTH_LINK_ACCOUNT_CONNECTION_LIMIT_REACHED,
-      );
-    }
-
-    await this.externalAccountService.updateByFilters(
-      { foreignId, userId: user._id.toString(), type: externalAccountType },
-      {
-        foreignId,
-        refreshTokenEncrypted: encrypt(refreshToken),
-        accessTokenEncrypted: encrypt(accessToken),
-        expiryDate,
-        email,
-        connected: true,
-      },
-      { session, upsert: true },
-    );
   }
 
   private async authUser(
@@ -543,6 +484,7 @@ export class AuthService {
           await this.externalAccountService.findOneByFilters(
             {
               foreignId,
+              connected: true,
             },
             { session },
           );
@@ -584,7 +526,20 @@ export class AuthService {
           }
 
           if (user) {
-            await this.linkAccount({ ...payload, session, user });
+            if (!payload.refreshToken) {
+              throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
+            }
+
+            await this.externalAccountService.connect({
+              foreignId,
+              accessToken: payload.accessToken,
+              email,
+              expiryDate: payload.expiryDate,
+              refreshToken: payload.refreshToken,
+              type: externalAccountType,
+              userId: user._id.toString(),
+              session,
+            });
           } else {
             user = await this.createUser({ ...payload, session });
           }
