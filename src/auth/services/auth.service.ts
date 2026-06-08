@@ -135,7 +135,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?result=${error.message}`);
+      res.redirect(webBase + `?auth_result=${error.message}`);
     }
   }
 
@@ -216,11 +216,11 @@ export class AuthService {
           connectionFlow: true,
         });
       });
-      res.redirect(webBase + '?result=success');
+      res.redirect(webBase + '?account_connection_result=success');
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_connection_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?result=${error.message}`);
+      res.redirect(webBase + `?account_connection_result=${error.message}`);
     }
   }
 
@@ -289,7 +289,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?result=${error.message}`);
+      res.redirect(webBase + `?auth_result=${error.message}`);
     }
   }
 
@@ -368,11 +368,11 @@ export class AuthService {
           connectionFlow: true,
         });
       });
-      res.redirect(webBase + '?result=success');
+      res.redirect(webBase + '?account_connection_result=success');
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_connection_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?result=${error.message}`);
+      res.redirect(webBase + `?account_connection_result=${error.message}`);
     }
   }
 
