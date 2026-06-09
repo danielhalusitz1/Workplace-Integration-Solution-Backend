@@ -9,7 +9,7 @@ export class ExternalAccountConnectDTO {
   email: string;
   type: ExternalAccountType;
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string | null;
   expiryDate: number;
   session?: ClientSession;
 }

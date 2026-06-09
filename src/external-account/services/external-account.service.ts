@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, QueryFilter, QueryOptions, UpdateQuery } from 'mongoose';
+import { Model, QueryFilter, QueryOptions } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
@@ -125,7 +125,9 @@ export class ExternalAccountService {
         { foreignId, userId, type },
         {
           foreignId,
-          refreshTokenEncrypted: encrypt(refreshToken),
+          ...(refreshToken
+            ? { refreshTokenEncrypted: encrypt(refreshToken) }
+            : {}),
           accessTokenEncrypted: encrypt(accessToken),
           expiryDate,
           email,
@@ -134,6 +136,12 @@ export class ExternalAccountService {
         { session },
       );
     } else {
+      if (!refreshToken) {
+        throw new BadRequestException(
+          ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_MISSING_REFRESH_TOKEN,
+        );
+      }
+
       await this.create({
         foreignId,
         refreshTokenEncrypted: encrypt(refreshToken),
@@ -194,13 +202,5 @@ export class ExternalAccountService {
       .find(filters, null, options)
       .lean()
       .cursor();
-  }
-
-  async updateByFilters(
-    filters: QueryFilter<ExternalAccount>,
-    update: UpdateQuery<ExternalAccount>,
-    options?: QueryOptions<ExternalAccount>,
-  ): Promise<ExternalAccountDocument | null> {
-    return this.externalAccountModel.findOneAndUpdate(filters, update, options);
   }
 }

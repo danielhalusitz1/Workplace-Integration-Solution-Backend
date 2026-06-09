@@ -72,25 +72,19 @@ export class AuthMicrosoftService {
       const { accessToken, expiryDate, refreshToken } =
         await this.microsoftClientService.refreshTokens(msAccount);
 
-      await this.externalAccountService.updateByFilters(
-        {
-          _id: msAccount._id,
-        },
-        {
-          accessTokenEncrypted: encrypt(accessToken),
-          refreshTokenEncrypted: encrypt(refreshToken),
-          expiryDate,
-        },
-      );
+      await this.externalAccountService.connect({
+        foreignId: msAccount.foreignId,
+        accessToken: accessToken,
+        email: msAccount.email,
+        expiryDate: expiryDate,
+        refreshToken: refreshToken,
+        type: msAccount.type,
+        userId: msAccount.userId,
+      });
     } catch (error) {
-      await this.externalAccountService.updateByFilters(
-        {
-          _id: msAccount._id,
-        },
-        {
-          connected: false,
-        },
-      );
+      await this.externalAccountService.disconnect({
+        _id: msAccount._id.toString(),
+      });
       throw error;
     }
   }

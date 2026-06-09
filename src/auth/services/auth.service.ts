@@ -397,24 +397,16 @@ export class AuthService {
       refreshToken,
     } = payload;
 
-    await this.externalAccountService.updateByFilters(
-      {
-        userId: user._id.toString(),
-        foreignId,
-        type: externalAccountType,
-      },
-      {
-        email,
-        foreignId,
-        ...(refreshToken
-          ? { refreshTokenEncrypted: encrypt(refreshToken) }
-          : {}),
-        accessTokenEncrypted: encrypt(accessToken),
-        expiryDate,
-        connected: true,
-      },
-      { session },
-    );
+    await this.externalAccountService.connect({
+      userId: user._id.toString(),
+      foreignId,
+      type: externalAccountType,
+      accessToken: accessToken,
+      email: email,
+      expiryDate: expiryDate,
+      refreshToken: refreshToken,
+      session,
+    });
   }
 
   private async createUser(payload: AuthCreateUserDTO): Promise<UserDocument> {

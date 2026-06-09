@@ -73,29 +73,21 @@ export class AuthGoogleService {
     const { access_token, expiry_date, refresh_token } = newCredentials;
     if (!access_token || expiry_date === null || expiry_date === undefined) {
       this.logger.error(`Missing tokens at user: ${googleAccount.userId}`);
-      await this.externalAccountService.updateByFilters(
-        {
-          _id: googleAccount._id,
-        },
-        {
-          connected: false,
-        },
-      );
+      await this.externalAccountService.disconnect({
+        _id: googleAccount._id.toString(),
+      });
       return;
     }
 
-    await this.externalAccountService.updateByFilters(
-      {
-        _id: googleAccount._id,
-      },
-      {
-        accessTokenEncrypted: encrypt(access_token),
-        ...(refresh_token
-          ? { refreshTokenEncrypted: encrypt(refresh_token) }
-          : {}),
-        expiryDate: expiry_date,
-      },
-    );
+    await this.externalAccountService.connect({
+      foreignId: googleAccount.foreignId,
+      accessToken: access_token,
+      email: googleAccount.email,
+      expiryDate: expiry_date,
+      refreshToken: refresh_token,
+      type: googleAccount.type,
+      userId: googleAccount.userId,
+    });
   }
 
   async login(
