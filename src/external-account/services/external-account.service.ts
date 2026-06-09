@@ -66,8 +66,8 @@ export class ExternalAccountService {
       foreignId,
       email,
       type,
-      refreshTokenEncrypted,
-      accessTokenEncrypted,
+      refreshToken,
+      accessToken,
       expiryDate,
       session,
     } = payload;
@@ -82,8 +82,8 @@ export class ExternalAccountService {
             userId,
             foreignId,
             type,
-            refreshTokenEncrypted,
-            accessTokenEncrypted,
+            refreshTokenEncrypted: encrypt(refreshToken),
+            accessTokenEncrypted: encrypt(accessToken),
             expiryDate,
             email,
             connected: true,
@@ -144,8 +144,8 @@ export class ExternalAccountService {
 
       await this.create({
         foreignId,
-        refreshTokenEncrypted: encrypt(refreshToken),
-        accessTokenEncrypted: encrypt(accessToken),
+        refreshToken,
+        accessToken,
         expiryDate,
         email,
         userId,

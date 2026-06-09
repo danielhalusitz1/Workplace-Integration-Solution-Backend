@@ -1,7 +1,7 @@
+import { ClientSession } from 'mongoose';
+import { UserDTO } from 'src/user/dto/user.dto';
+
 export class SessionCreateDTO {
-  userId: string;
-  accessToken: string;
-  refreshToken: string;
-  accessExpiresAt: Date;
-  refreshExpiresAt: Date;
+  user: UserDTO;
+  session?: ClientSession;
 }

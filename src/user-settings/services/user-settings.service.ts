@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, QueryFilter, QueryOptions } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
@@ -29,7 +33,7 @@ export class UserSettingsService {
     const userSettings = await this.findOneByFilters({ userId: user._id });
 
     if (!userSettings) {
-      throw new BadRequestException(
+      throw new NotFoundException(
         ErrorTypes.USER_SETTINGS_SERVICE_GET_BY_USER_ID_NOT_FOUND,
       );
     }

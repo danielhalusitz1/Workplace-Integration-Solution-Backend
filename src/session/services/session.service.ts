@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { ClientSession, Model, QueryFilter, QueryOptions } from 'mongoose';
+import { Model, QueryFilter, QueryOptions } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 
 import { SessionCreateDTO } from '../dto/session-create.dto';
@@ -32,11 +32,25 @@ export class SessionService {
     });
   }
 
-  async create(
-    payload: SessionCreateDTO,
-    session?: ClientSession,
-  ): Promise<SessionDocument> {
-    return (await this.sessionModel.create([payload], { session }))[0];
+  async create(payload: SessionCreateDTO): Promise<SessionDocument> {
+    const { user, session } = payload;
+    const { accessToken, refreshToken, accessExpiresAt, refreshExpiresAt } =
+      await this.getTokens({ user });
+
+    return (
+      await this.sessionModel.create(
+        [
+          {
+            userId: user._id.toString(),
+            accessToken,
+            refreshToken,
+            accessExpiresAt,
+            refreshExpiresAt,
+          },
+        ],
+        { session },
+      )
+    )[0];
   }
 
   async getActiveSession(
@@ -51,13 +65,6 @@ export class SessionService {
       accessToken,
       accessExpiresAt: { $gt: now },
     });
-  }
-
-  async findOneByFilters(
-    filters: QueryFilter<Session>,
-    options?: QueryOptions<Session>,
-  ): Promise<SessionDocument | null> {
-    return await this.sessionModel.findOne(filters, null, options);
   }
 
   private async getTokens(
@@ -131,5 +138,12 @@ export class SessionService {
   async deleteMany(payload: SessionDeleteManyDTO) {
     const { userId, session } = payload;
     return await this.sessionModel.deleteMany({ userId }, { session });
+  }
+
+  async findOneByFilters(
+    filters: QueryFilter<Session>,
+    options?: QueryOptions<Session>,
+  ): Promise<SessionDocument | null> {
+    return await this.sessionModel.findOne(filters, null, options);
   }
 }

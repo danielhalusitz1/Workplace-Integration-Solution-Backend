@@ -13,7 +13,7 @@ import { UserDocument } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { UserSubscriptionService } from 'src/user-subscription/services/user-subscription.service';
-import { decrypt, encrypt } from 'src/utils/encrypt';
+import { decrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import {
@@ -26,7 +26,6 @@ import { AuthGetGoogleAuthUrlDTO } from '../dto/auth-get-google-auth-url.dto';
 import { AuthGetGoogleConnectionUrlDTO } from '../dto/auth-get-google-connection-url.dto';
 import { AuthGetMicrosoftAuthUrlDTO } from '../dto/auth-get-microsoft-auth-url.dto';
 import { AuthGetMicrosoftConnectionUrlDTO } from '../dto/auth-get-microsoft-connection-url.dto';
-import { GetTokensDTO, GetTokensResponseDTO } from '../dto/auth-get-tokens.dto';
 import { AuthGoogleAuthCallbackDTO } from '../dto/auth-google-auth-callback.dto';
 import { AuthGoogleConnectionCallbackDTO } from '../dto/auth-google-connection-callback.dto';
 import { AuthLogoutDTO } from '../dto/auth-logout.dto';
@@ -448,8 +447,8 @@ export class AuthService {
     await this.externalAccountService.create({
       _id: externalAccountMongoId,
       foreignId,
-      refreshTokenEncrypted: encrypt(refreshToken),
-      accessTokenEncrypted: encrypt(accessToken),
+      refreshToken,
+      accessToken,
       expiryDate,
       userId: user._id.toString(),
       type: externalAccountType,
@@ -537,24 +536,17 @@ export class AuthService {
         const userDTO = plainToInstance(UserDTO, user, {
           excludeExtraneousValues: true,
         });
-        const tokens = await this.getTokens({ user: userDTO });
 
-        await this.sessionService.create(
-          {
-            userId: user._id.toString(),
-            accessToken: tokens.accessToken,
-            accessExpiresAt: tokens.accessExpiresAt,
-            refreshToken: tokens.refreshToken,
-            refreshExpiresAt: tokens.refreshExpiresAt,
-          },
+        const authSession = await this.sessionService.create({
+          user: userDTO,
           session,
-        );
+        });
 
         return {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          accessExpiresAt: tokens.accessExpiresAt,
-          refreshExpiresAt: tokens.refreshExpiresAt,
+          accessToken: authSession.accessToken,
+          refreshToken: authSession.refreshToken,
+          accessExpiresAt: authSession.accessExpiresAt,
+          refreshExpiresAt: authSession.refreshExpiresAt,
         };
       });
 
@@ -608,33 +600,6 @@ export class AuthService {
     } catch {
       throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
-  }
-
-  private async getTokens(
-    payload: GetTokensDTO,
-  ): Promise<GetTokensResponseDTO> {
-    const { user } = payload;
-
-    const now = Date.now();
-
-    const plainUser = {
-      ...user,
-    };
-
-    const accessToken = await this.jwtService.signAsync(plainUser, {
-      expiresIn: '1d',
-    });
-
-    const refreshToken = await this.jwtService.signAsync(plainUser, {
-      expiresIn: '30d',
-    });
-
-    return {
-      accessToken,
-      accessExpiresAt: new Date(now + 24 * 60 * 60 * 1000),
-      refreshToken,
-      refreshExpiresAt: new Date(now + 30 * 24 * 60 * 60 * 1000),
-    };
   }
 
   async logout(payload: AuthLogoutDTO): Promise<void> {

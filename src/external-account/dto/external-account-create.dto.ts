@@ -7,8 +7,8 @@ export class ExternalAccountCreateDTO {
   foreignId: string;
   email: string;
   type: ExternalAccountType;
-  refreshTokenEncrypted: string;
-  accessTokenEncrypted: string;
+  refreshToken: string;
+  accessToken: string;
   expiryDate: number;
   session?: ClientSession;
 }
