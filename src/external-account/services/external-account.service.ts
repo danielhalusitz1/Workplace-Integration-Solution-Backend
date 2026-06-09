@@ -79,6 +79,12 @@ export class ExternalAccountService {
         );
       }
 
+      if (existingForeignAccount.banned) {
+        throw new BadRequestException(
+          ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_BANNED,
+        );
+      }
+
       const updatedExternalAccount =
         await this.externalAccountModel.findOneAndUpdate(
           { foreignId, userId, type },

@@ -61,6 +61,12 @@ export class ExternalAccount {
   connected: boolean;
 
   @ApiProperty({
+    type: 'boolean',
+  })
+  @Prop({ default: false })
+  banned: boolean;
+
+  @ApiProperty({
     type: 'string',
     format: 'date-time',
   })

@@ -243,6 +243,7 @@ export class AuthService {
       const supportedErrorMessages = [
         ErrorTypes.CONNECTION_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_BANNED.toString(),
       ];
       if (supportedErrorMessages.includes(error.message as string)) {
         res.redirect(
@@ -424,6 +425,7 @@ export class AuthService {
       const supportedErrorMessages = [
         ErrorTypes.CONNECTION_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_BANNED.toString(),
       ];
       if (supportedErrorMessages.includes(error.message as string)) {
         res.redirect(
