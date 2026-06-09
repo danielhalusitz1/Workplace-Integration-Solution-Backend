@@ -1,14 +1,13 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import type { Response } from 'express';
 import { Credentials, OAuth2Client } from 'google-auth-library';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { GoogleClientService } from 'src/google-client/services/google-client.service';
 import { UserDTO } from 'src/user/dto/user.dto';
-import { encrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import { AuthGoogleAuthUrlDTO } from '../dto/auth-google-auth-url.dto';
@@ -30,6 +29,7 @@ export class AuthGoogleService {
   private readonly logger: Logger = new Logger('AuthGoogleService');
 
   constructor(
+    private readonly jwtService: JwtService,
     private readonly googleClientService: GoogleClientService,
     private readonly configService: ConfigService,
     private readonly externalAccountService: ExternalAccountService,
@@ -135,27 +135,16 @@ export class AuthGoogleService {
     };
   }
 
-  getConnectionUrl(
-    payload: AuthGoogleConnectionUrlDTO,
-    user: UserDTO,
-    res: Response,
-  ) {
+  getConnectionUrl(payload: AuthGoogleConnectionUrlDTO, user: UserDTO) {
     const { webRedirectUri } = payload;
 
-    const state = encrypt(user._id);
+    const state = {
+      userId: user._id,
+      webRedirectUri,
+    };
 
-    res.cookie('google_connection_state', state, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 5 * 60 * 1000,
-    });
-
-    res.cookie('google_connection_web_redirect_uri', webRedirectUri, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 5 * 60 * 1000,
+    const stateToken = this.jwtService.sign(state, {
+      expiresIn: '5m',
     });
 
     const redirectUri = this.configService.getOrThrow<string>(
@@ -175,7 +164,7 @@ export class AuthGoogleService {
       access_type: 'offline',
       prompt: 'consent',
       redirect_uri: redirectUrl,
-      state,
+      state: stateToken,
     });
 
     return url;

@@ -24,9 +24,8 @@ export class AuthController {
   getGoogleConnectionUrl(
     @Body() payload: AuthGetGoogleConnectionUrlDTO,
     @User() user: UserDTO,
-    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.getGoogleConnectionUrl(payload, user, res);
+    return this.authService.getGoogleConnectionUrl(payload, user);
   }
 
   @ApiResponse({
@@ -36,9 +35,8 @@ export class AuthController {
   getMicrosoftConnectionUrl(
     @Body() payload: AuthGetMicrosoftConnectionUrlDTO,
     @User() user: UserDTO,
-    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.getMicrosoftConnectionUrl(payload, user, res);
+    return this.authService.getMicrosoftConnectionUrl(payload, user);
   }
 
   @ApiResponse({
@@ -73,10 +71,9 @@ export class AuthController {
   @Get('google-connection-callback')
   googleConnectionCallback(
     @Query() payload: AuthGoogleConnectionCallbackDTO,
-    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    return this.authService.googleConnectionCallback(payload, req, res);
+    return this.authService.googleConnectionCallback(payload, res);
   }
 
   @Public()
@@ -93,10 +90,9 @@ export class AuthController {
   @Get('microsoft-connection-callback')
   microsoftConnectionCallback(
     @Query() payload: AuthMicrosoftConnectionCallbackDTO,
-    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    return this.authService.microsoftConnectionCallback(payload, req, res);
+    return this.authService.microsoftConnectionCallback(payload, res);
   }
 
   @Public()

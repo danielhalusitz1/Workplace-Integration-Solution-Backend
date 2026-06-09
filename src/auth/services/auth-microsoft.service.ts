@@ -1,14 +1,13 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
-import type { Response } from 'express';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MicrosoftClientService } from 'src/microsoft-client/services/microsoft-client.service';
 import { UserDTO } from 'src/user/dto/user.dto';
-import { encrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import { AuthMicrosoftGetConnectionUrlDTO } from '../dto/auth-microsoft-get-connection-url.dto';
@@ -37,6 +36,7 @@ export class AuthMicrosoftService {
   private readonly logger = new Logger(AuthMicrosoftService.name);
 
   constructor(
+    private readonly jwtService: JwtService,
     private readonly externalAccountService: ExternalAccountService,
     private readonly microsoftClientService: MicrosoftClientService,
     private readonly configService: ConfigService,
@@ -162,23 +162,15 @@ export class AuthMicrosoftService {
   async getConnectionUrl(
     payload: AuthMicrosoftGetConnectionUrlDTO,
     user: UserDTO,
-    res: Response,
   ) {
     const { webRedirectUri } = payload;
-    const state = encrypt(user._id);
+    const state = {
+      userId: user._id,
+      webRedirectUri,
+    };
 
-    res.cookie('microsoft_connection_state', state, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 5 * 60 * 1000,
-    });
-
-    res.cookie('microsoft_connection_web_redirect_uri', webRedirectUri, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 5 * 60 * 1000,
+    const stateToken = this.jwtService.sign(state, {
+      expiresIn: '5m',
     });
 
     const redirectUri = this.configService.getOrThrow<string>(
@@ -186,7 +178,7 @@ export class AuthMicrosoftService {
     );
     return await this.microsoftClientService.msalClient.getAuthCodeUrl({
       scopes: ['openid', 'profile', 'email', 'offline_access', 'User.Read'],
-      state,
+      state: stateToken,
       redirectUri: this.getRedirectUrl(redirectUri),
       prompt: 'consent',
     });

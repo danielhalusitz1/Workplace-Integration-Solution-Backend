@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
@@ -12,7 +13,6 @@ import { UserDocument } from 'src/user/schemas/user.schema';
 import { UserService } from 'src/user/services/user.service';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { UserSubscriptionService } from 'src/user-subscription/services/user-subscription.service';
-import { decrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 import {
@@ -40,6 +40,7 @@ export class AuthService {
   private readonly logger: Logger = new Logger(AuthService.name);
 
   constructor(
+    private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
     private readonly externalAccountService: ExternalAccountService,
     private readonly authGoogleService: AuthGoogleService,
@@ -54,9 +55,8 @@ export class AuthService {
   getGoogleConnectionUrl(
     payload: AuthGetGoogleConnectionUrlDTO,
     user: UserDTO,
-    res: Response,
   ) {
-    return this.authGoogleService.getConnectionUrl(payload, user, res);
+    return this.authGoogleService.getConnectionUrl(payload, user);
   }
 
   getGoogleAuthUrl(payload: AuthGetGoogleAuthUrlDTO) {
@@ -66,9 +66,8 @@ export class AuthService {
   async getMicrosoftConnectionUrl(
     payload: AuthGetMicrosoftConnectionUrlDTO,
     user: UserDTO,
-    res: Response,
   ) {
-    return await this.authMicrosoftService.getConnectionUrl(payload, user, res);
+    return await this.authMicrosoftService.getConnectionUrl(payload, user);
   }
 
   async getMicrosoftAuthUrl(payload: AuthGetMicrosoftAuthUrlDTO) {
@@ -159,18 +158,10 @@ export class AuthService {
 
   async microsoftConnectionCallback(
     payload: AuthMicrosoftConnectionCallbackDTO,
-    req: Request,
     res: Response,
   ): Promise<void> {
-    const microsoftWebRedirectUriFromCookie = req.cookies[
-      'microsoft_connection_web_redirect_uri'
-    ] as string;
-
-    res.clearCookie('microsoft_connection_web_redirect_uri', {
-      sameSite: 'lax',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    });
+    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
+    let webRedirectUri: string | undefined;
 
     try {
       const { code, state } = payload;
@@ -179,31 +170,16 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
 
-      const microsoftStateFromCookie = req.cookies[
-        'microsoft_connection_state'
-      ] as string | undefined;
+      const decodedState = await this.jwtService.verifyAsync<{
+        userId: string;
+        webRedirectUri: string;
+      }>(state);
 
-      const skipOauthStateCheck = this.configService.getOrThrow<string>(
-        'SKIP_OAUTH_STATE_CHECK',
-      );
-      if (
-        skipOauthStateCheck !== 'true' &&
-        (!state ||
-          !microsoftStateFromCookie ||
-          state !== microsoftStateFromCookie)
-      ) {
-        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-      }
+      webRedirectUri = decodedState.webRedirectUri;
+      const userId = decodedState.userId;
 
-      res.clearCookie('microsoft_connection_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
-
-      const decodedState = decrypt(state);
       const user = await this.userService.findOneByFilters({
-        _id: new Types.ObjectId(decodedState),
+        _id: new Types.ObjectId(userId),
       });
 
       if (!user) {
@@ -240,7 +216,7 @@ export class AuthService {
         });
       });
       res.redirect(
-        `${microsoftWebRedirectUriFromCookie}?account_connection_result=success`,
+        `${webBase}${webRedirectUri}?account_connection_result=success`,
       );
     } catch (error) {
       this.logger.error(error);
@@ -256,11 +232,11 @@ export class AuthService {
       ];
       if (supportedErrorMessages.includes(error.message as string)) {
         res.redirect(
-          `${microsoftWebRedirectUriFromCookie}?account_connection_result=${error.message}`,
+          `${webBase}${webRedirectUri}?account_connection_result=${error.message}`,
         );
       } else {
         res.redirect(
-          `${microsoftWebRedirectUriFromCookie}?account_connection_result=unknown-error`,
+          `${webBase}${webRedirectUri}?account_connection_result=${ErrorTypes.CONNECTION_FAILED}`,
         );
       }
     }
@@ -354,18 +330,10 @@ export class AuthService {
 
   async googleConnectionCallback(
     payload: AuthGoogleConnectionCallbackDTO,
-    req: Request,
     res: Response,
   ): Promise<void> {
-    const googleWebRedirectUriFromCookie = req.cookies[
-      'google_connection_web_redirect_uri'
-    ] as string;
-
-    res.clearCookie('google_connection_web_redirect_uri', {
-      sameSite: 'lax',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    });
+    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
+    let webRedirectUri: string | undefined;
 
     try {
       const { code, state } = payload;
@@ -374,29 +342,16 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
 
-      const googleStateFromCookie = req.cookies['google_connection_state'] as
-        | string
-        | undefined;
+      const decodedState = await this.jwtService.verifyAsync<{
+        userId: string;
+        webRedirectUri: string;
+      }>(state);
 
-      const skipOauthStateCheck = this.configService.getOrThrow<string>(
-        'SKIP_OAUTH_STATE_CHECK',
-      );
-      if (
-        skipOauthStateCheck !== 'true' &&
-        (!state || !googleStateFromCookie || state !== googleStateFromCookie)
-      ) {
-        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-      }
+      webRedirectUri = decodedState.webRedirectUri;
+      const userId = decodedState.userId;
 
-      res.clearCookie('google_connection_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
-
-      const decodedState = decrypt(state);
       const user = await this.userService.findOneByFilters({
-        _id: new Types.ObjectId(decodedState),
+        _id: new Types.ObjectId(userId),
       });
 
       if (!user) {
@@ -432,28 +387,25 @@ export class AuthService {
           session,
         });
       });
+
       res.redirect(
-        `${googleWebRedirectUriFromCookie}?account_connection_result=success`,
+        `${webBase}${webRedirectUri}?account_connection_result=success`,
       );
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('google_connection_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
       const supportedErrorMessages = [
         ErrorTypes.CONNECTION_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_BANNED.toString(),
       ];
+
       if (supportedErrorMessages.includes(error.message as string)) {
         res.redirect(
-          `${googleWebRedirectUriFromCookie}?account_connection_result=${error.message}`,
+          `${webBase}${webRedirectUri}?account_connection_result=${error.message}`,
         );
       } else {
         res.redirect(
-          `${googleWebRedirectUriFromCookie}?account_connection_result=unknown-error`,
+          `${webBase}${webRedirectUri}?account_connection_result=${ErrorTypes.CONNECTION_FAILED}`,
         );
       }
     }
