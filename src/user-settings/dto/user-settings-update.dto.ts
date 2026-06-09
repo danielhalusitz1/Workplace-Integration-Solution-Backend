@@ -19,7 +19,7 @@ export class UserSettingsUpdateDTO {
 
   @ApiProperty({
     type: 'string',
-    nullable: true,
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -27,7 +27,7 @@ export class UserSettingsUpdateDTO {
 
   @ApiProperty({
     type: 'string',
-    nullable: true,
+    required: false,
   })
   @IsString()
   @IsOptional()

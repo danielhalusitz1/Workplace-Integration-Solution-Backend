@@ -37,7 +37,7 @@ export class UserSubscription {
   @ApiProperty({
     type: 'string',
     format: 'date-time',
-    nullable: true,
+    required: false,
   })
   @Prop()
   endDate?: Date;

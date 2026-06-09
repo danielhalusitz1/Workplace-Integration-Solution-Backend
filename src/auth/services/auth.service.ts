@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
@@ -49,7 +48,6 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly userSettingsService: UserSettingsService,
     private readonly mongodbTransactionService: MongodbTransactionService,
-    private readonly jwtService: JwtService,
     private readonly userSubscriptionService: UserSubscriptionService,
   ) {}
 

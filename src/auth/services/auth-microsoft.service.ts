@@ -204,9 +204,8 @@ export class AuthMicrosoftService {
     const redirectUri =
       uri ??
       this.configService.getOrThrow<string>('MICROSOFT_AUTH_REDIRECT_URI');
-    const host = this.configService.getOrThrow<string>('HOST');
-    const port = this.configService.getOrThrow<string>('PORT');
+    const baseUrl = this.configService.getOrThrow<string>('BASE_URL');
 
-    return `http://${host}:${port}/${redirectUri}`;
+    return `${baseUrl}/${redirectUri}`;
   }
 }
