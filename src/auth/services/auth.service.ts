@@ -33,7 +33,6 @@ import { AuthLogoutEveryWhereDTO } from '../dto/auth-logout-everywhere.dto';
 import { AuthMicrosoftAuthCallbackDTO } from '../dto/auth-microsoft-auth-callback.dto';
 import { AuthMicrosoftConnectionCallbackDTO } from '../dto/auth-microsoft-connection-callback.dto';
 import { AuthSetCookie } from '../dto/auth-set-cookie.dto';
-import { AuthUpdateSettingsAndExternalAccountDTO } from '../dto/auth-update-settings-and-external-account.dto';
 import { AuthGoogleService } from './auth-google.service';
 import { AuthMicrosoftService } from './auth-microsoft.service';
 
@@ -133,7 +132,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase + `/welcome?auth_result=${error.message}`);
+      res.redirect(webBase + `/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`);
     }
   }
 
@@ -193,16 +192,7 @@ export class AuthService {
       const expiryDate = microsoftUser.expiryDate;
       const refreshToken = microsoftUser.refreshToken;
 
-      if (
-        !refreshToken ||
-        !accessToken ||
-        expiryDate === null ||
-        expiryDate === undefined
-      ) {
-        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-      }
-
-      if (!refreshToken) {
+      if (!accessToken || expiryDate === null || expiryDate === undefined) {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
 
@@ -222,7 +212,15 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_connection_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?account_connection_result=${error.message}`);
+      const supportedErrorMessages = [
+        ErrorTypes.CONNECTION_FAILED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
+      ];
+      if (supportedErrorMessages.includes(error.message as string)) {
+        res.redirect(webBase + `?account_connection_result=${error.message}`);
+      } else {
+        res.redirect(webBase + `?account_connection_result=unknown-error`);
+      }
     }
   }
 
@@ -291,7 +289,7 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_auth_state', { sameSite: 'lax' });
-      res.redirect(webBase + `/welcome?auth_result=${error.message}`);
+      res.redirect(webBase + `/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`);
     }
   }
 
@@ -349,16 +347,7 @@ export class AuthService {
       const expiryDate = googleUser.expiryDate;
       const refreshToken = googleUser.refreshToken;
 
-      if (
-        !refreshToken ||
-        !accessToken ||
-        expiryDate === null ||
-        expiryDate === undefined
-      ) {
-        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
-      }
-
-      if (!refreshToken) {
+      if (!accessToken || expiryDate === null || expiryDate === undefined) {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
 
@@ -378,34 +367,16 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_connection_state', { sameSite: 'lax' });
-      res.redirect(webBase + `?account_connection_result=${error.message}`);
+      const supportedErrorMessages = [
+        ErrorTypes.CONNECTION_FAILED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
+      ];
+      if (supportedErrorMessages.includes(error.message as string)) {
+        res.redirect(webBase + `?account_connection_result=${error.message}`);
+      } else {
+        res.redirect(webBase + `?account_connection_result=unknown-error`);
+      }
     }
-  }
-
-  private async loginUser(
-    payload: AuthUpdateSettingsAndExternalAccountDTO,
-  ): Promise<void> {
-    const {
-      user,
-      session,
-      accessToken,
-      email,
-      expiryDate,
-      externalAccountType,
-      foreignId,
-      refreshToken,
-    } = payload;
-
-    await this.externalAccountService.connect({
-      userId: user._id.toString(),
-      foreignId,
-      type: externalAccountType,
-      accessToken: accessToken,
-      email: email,
-      expiryDate: expiryDate,
-      refreshToken: refreshToken,
-      session,
-    });
   }
 
   private async createUser(payload: AuthCreateUserDTO): Promise<UserDocument> {
@@ -420,10 +391,6 @@ export class AuthService {
       firstName,
       lastName,
     } = payload;
-
-    if (!refreshToken) {
-      throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
-    }
 
     const externalAccountMongoId = new Types.ObjectId();
 
@@ -489,9 +456,14 @@ export class AuthService {
         }
 
         if (user) {
-          await this.loginUser({
-            ...payload,
-            user,
+          await this.externalAccountService.connect({
+            userId: user._id.toString(),
+            foreignId,
+            type: externalAccountType,
+            accessToken: payload.accessToken,
+            email: email,
+            expiryDate: payload.expiryDate,
+            refreshToken: payload.refreshToken,
             session,
           });
         } else {
@@ -514,10 +486,6 @@ export class AuthService {
           }
 
           if (user) {
-            if (!payload.refreshToken) {
-              throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
-            }
-
             await this.externalAccountService.connect({
               foreignId,
               accessToken: payload.accessToken,
