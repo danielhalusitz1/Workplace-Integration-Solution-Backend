@@ -106,15 +106,9 @@ export class MicrosoftClientService {
       } catch (refreshError) {
         this.logger.error(refreshError);
 
-        await this.externalAccountService.updateByFilters(
-          {
-            _id: externalAccount._id,
-            connected: true,
-          },
-          {
-            connected: false,
-          },
-        );
+        await this.externalAccountService.disconnect({
+          _id: externalAccount._id.toString(),
+        });
 
         const userSettings = await this.userSettingsService.findOneByFilters({
           primaryExternalAccount: externalAccount._id.toString(),

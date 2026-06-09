@@ -60,15 +60,9 @@ export class GoogleClientService {
       if (e.response?.data?.error === 'invalid_grant') {
         this.logger.error(e);
 
-        await this.externalAccountService.updateByFilters(
-          {
-            _id: externalAccount._id,
-            connected: true,
-          },
-          {
-            connected: false,
-          },
-        );
+        await this.externalAccountService.disconnect({
+          _id: externalAccount._id.toString(),
+        });
 
         const userSettings = await this.userSettingsService.findOneByFilters({
           primaryExternalAccount: externalAccount._id.toString(),

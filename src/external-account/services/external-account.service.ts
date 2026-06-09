@@ -10,6 +10,7 @@ import { encrypt } from 'src/utils/encrypt';
 import { ExternalAccountConnectDTO } from '../dto/external-account-connect.dto';
 import { ExternalAccountCreateDTO } from '../dto/external-account-create.dto';
 import { ExternalAccountDeleteDTO } from '../dto/external-account-delete.dto';
+import { ExternalAccountDisconnectDTO } from '../dto/external-account-disconnect.dto';
 import { ExternalAccountListDTO } from '../dto/external-account-list.dto';
 import { ValidateConnectionDTO } from '../dto/external-account-validate-connection.dto';
 import {
@@ -118,12 +119,6 @@ export class ExternalAccountService {
         );
       }
 
-      if (existingForeignAccount.connected) {
-        throw new BadRequestException(
-          ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_ALREADY_CONNECTED,
-        );
-      }
-
       await this.validateConnectionLimit({ userId, type, session });
 
       await this.externalAccountModel.updateOne(
@@ -169,6 +164,12 @@ export class ExternalAccountService {
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED,
       );
     }
+  }
+
+  async disconnect(payload: ExternalAccountDisconnectDTO) {
+    const { _id } = payload;
+
+    await this.externalAccountModel.updateOne({ _id }, { connected: false });
   }
 
   async findOneByFilters(
