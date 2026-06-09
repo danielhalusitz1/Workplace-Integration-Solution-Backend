@@ -444,7 +444,7 @@ export class AuthService {
       session,
     });
 
-    await this.externalAccountService.create({
+    await this.externalAccountService.connect({
       _id: externalAccountMongoId,
       foreignId,
       refreshToken,

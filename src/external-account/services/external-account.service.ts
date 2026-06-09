@@ -8,15 +8,11 @@ import { UserSubscriptionService } from 'src/user-subscription/services/user-sub
 import { encrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountConnectDTO } from '../dto/external-account-connect.dto';
-import { ExternalAccountCreateDTO } from '../dto/external-account-create.dto';
 import { ExternalAccountDeleteDTO } from '../dto/external-account-delete.dto';
 import { ExternalAccountDisconnectDTO } from '../dto/external-account-disconnect.dto';
 import { ExternalAccountListDTO } from '../dto/external-account-list.dto';
 import { ValidateConnectionDTO } from '../dto/external-account-validate-connection.dto';
-import {
-  ExternalAccount,
-  ExternalAccountDocument,
-} from '../schemas/external-account.schema';
+import { ExternalAccount } from '../schemas/external-account.schema';
 
 @Injectable()
 export class ExternalAccountService {
@@ -57,45 +53,9 @@ export class ExternalAccountService {
     }
   }
 
-  async create(
-    payload: ExternalAccountCreateDTO,
-  ): Promise<ExternalAccountDocument> {
-    const {
-      _id,
-      userId,
-      foreignId,
-      email,
-      type,
-      refreshToken,
-      accessToken,
-      expiryDate,
-      session,
-    } = payload;
-
-    await this.validateConnectionLimit({ userId, type, session });
-
-    return (
-      await this.externalAccountModel.create(
-        [
-          {
-            _id,
-            userId,
-            foreignId,
-            type,
-            refreshTokenEncrypted: encrypt(refreshToken),
-            accessTokenEncrypted: encrypt(accessToken),
-            expiryDate,
-            email,
-            connected: true,
-          },
-        ],
-        { session },
-      )
-    )[0];
-  }
-
   async connect(payload: ExternalAccountConnectDTO) {
     const {
+      _id,
       foreignId,
       accessToken,
       email,
@@ -121,20 +81,29 @@ export class ExternalAccountService {
 
       await this.validateConnectionLimit({ userId, type, session });
 
-      await this.externalAccountModel.updateOne(
-        { foreignId, userId, type },
-        {
-          foreignId,
-          ...(refreshToken
-            ? { refreshTokenEncrypted: encrypt(refreshToken) }
-            : {}),
-          accessTokenEncrypted: encrypt(accessToken),
-          expiryDate,
-          email,
-          connected: true,
-        },
-        { session },
-      );
+      const updatedExternalAccount =
+        await this.externalAccountModel.findOneAndUpdate(
+          { foreignId, userId, type },
+          {
+            foreignId,
+            ...(refreshToken
+              ? { refreshTokenEncrypted: encrypt(refreshToken) }
+              : {}),
+            accessTokenEncrypted: encrypt(accessToken),
+            expiryDate,
+            email,
+            connected: true,
+          },
+          { session },
+        );
+
+      if (!updatedExternalAccount) {
+        throw new BadRequestException(
+          ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_NOT_SUCCESS,
+        );
+      }
+
+      return updatedExternalAccount;
     } else {
       if (!refreshToken) {
         throw new BadRequestException(
@@ -142,16 +111,24 @@ export class ExternalAccountService {
         );
       }
 
-      await this.create({
-        foreignId,
-        refreshToken,
-        accessToken,
-        expiryDate,
-        email,
-        userId,
-        type,
-        session,
-      });
+      return (
+        await this.externalAccountModel.create(
+          [
+            {
+              _id,
+              userId,
+              foreignId,
+              type,
+              refreshTokenEncrypted: encrypt(refreshToken),
+              accessTokenEncrypted: encrypt(accessToken),
+              expiryDate,
+              email,
+              connected: true,
+            },
+          ],
+          { session },
+        )
+      )[0];
     }
   }
 
