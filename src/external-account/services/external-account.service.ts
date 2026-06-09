@@ -64,12 +64,7 @@ export class ExternalAccountService {
       type,
       userId,
       session,
-      excludeConnectionLimitValidation,
     } = payload;
-
-    if (!excludeConnectionLimitValidation) {
-      await this.validateConnectionLimit({ userId, type, session });
-    }
 
     const existingForeignAccount = await this.externalAccountModel.findOne(
       { foreignId },
@@ -113,6 +108,8 @@ export class ExternalAccountService {
           ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_MISSING_REFRESH_TOKEN,
         );
       }
+
+      await this.validateConnectionLimit({ userId, type, session });
 
       return (
         await this.externalAccountModel.create(

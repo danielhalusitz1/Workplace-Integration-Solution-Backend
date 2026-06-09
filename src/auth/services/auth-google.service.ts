@@ -87,7 +87,6 @@ export class AuthGoogleService {
       refreshToken: refresh_token,
       type: googleAccount.type,
       userId: googleAccount.userId,
-      excludeConnectionLimitValidation: true,
     });
   }
 
@@ -149,7 +148,7 @@ export class AuthGoogleService {
     const redirectUri = this.configService.getOrThrow<string>(
       'GOOGLE_CONNECTION_REDIRECT_URI',
     );
-    const baseUrl = this.configService.getOrThrow<string>('');
+    const baseUrl = this.configService.getOrThrow<string>('BASE_URL');
 
     const redirectUrl = `${baseUrl}/${redirectUri}`;
 

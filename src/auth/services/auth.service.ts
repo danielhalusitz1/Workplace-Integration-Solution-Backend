@@ -484,7 +484,6 @@ export class AuthService {
             expiryDate: payload.expiryDate,
             refreshToken: payload.refreshToken,
             session,
-            excludeConnectionLimitValidation: true,
           });
         } else {
           const otherExternalAccount =

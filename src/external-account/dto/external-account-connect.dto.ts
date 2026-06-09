@@ -11,6 +11,5 @@ export class ExternalAccountConnectDTO {
   accessToken: string;
   refreshToken?: string | null;
   expiryDate: number;
-  excludeConnectionLimitValidation?: boolean;
   session?: ClientSession;
 }

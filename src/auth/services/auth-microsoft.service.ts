@@ -80,7 +80,6 @@ export class AuthMicrosoftService {
         refreshToken: refreshToken,
         type: msAccount.type,
         userId: msAccount.userId,
-        excludeConnectionLimitValidation: true,
       });
     } catch (error) {
       await this.externalAccountService.disconnect({
