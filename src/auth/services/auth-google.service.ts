@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import type { Response } from 'express';
 import { Credentials, OAuth2Client } from 'google-auth-library';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { GoogleClientService } from 'src/google-client/services/google-client.service';
+import { UserDTO } from 'src/user/dto/user.dto';
 import { encrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
@@ -133,12 +135,23 @@ export class AuthGoogleService {
     };
   }
 
-  getConnectionUrl(payload: AuthGoogleConnectionUrlDTO) {
-    const { user, res } = payload;
+  getConnectionUrl(
+    payload: AuthGoogleConnectionUrlDTO,
+    user: UserDTO,
+    res: Response,
+  ) {
+    const { webRedirectUri } = payload;
 
     const state = encrypt(user._id);
 
     res.cookie('google_connection_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+
+    res.cookie('google_connection_web_redirect_uri', webRedirectUri, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

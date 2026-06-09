@@ -51,16 +51,24 @@ export class AuthService {
     private readonly userSubscriptionService: UserSubscriptionService,
   ) {}
 
-  getGoogleConnectionUrl(payload: AuthGetGoogleConnectionUrlDTO) {
-    return this.authGoogleService.getConnectionUrl(payload);
+  getGoogleConnectionUrl(
+    payload: AuthGetGoogleConnectionUrlDTO,
+    user: UserDTO,
+    res: Response,
+  ) {
+    return this.authGoogleService.getConnectionUrl(payload, user, res);
   }
 
   getGoogleAuthUrl(payload: AuthGetGoogleAuthUrlDTO) {
     return this.authGoogleService.getAuthUrl(payload);
   }
 
-  async getMicrosoftConnectionUrl(payload: AuthGetMicrosoftConnectionUrlDTO) {
-    return await this.authMicrosoftService.getConnectionUrl(payload);
+  async getMicrosoftConnectionUrl(
+    payload: AuthGetMicrosoftConnectionUrlDTO,
+    user: UserDTO,
+    res: Response,
+  ) {
+    return await this.authMicrosoftService.getConnectionUrl(payload, user, res);
   }
 
   async getMicrosoftAuthUrl(payload: AuthGetMicrosoftAuthUrlDTO) {
@@ -145,7 +153,15 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
+    const microsoftWebRedirectUriFromCookie = req.cookies[
+      'microsoft_connection_web_redirect_uri'
+    ] as string;
+
+    res.clearCookie('microsoft_connection_web_redirect_uri', {
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+    });
 
     try {
       const { code, state } = payload;
@@ -214,7 +230,9 @@ export class AuthService {
           session,
         });
       });
-      res.redirect(webBase + '?account_connection_result=success');
+      res.redirect(
+        `${microsoftWebRedirectUriFromCookie}?account_connection_result=success`,
+      );
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('microsoft_connection_state', {
@@ -227,9 +245,13 @@ export class AuthService {
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
       ];
       if (supportedErrorMessages.includes(error.message as string)) {
-        res.redirect(webBase + `?account_connection_result=${error.message}`);
+        res.redirect(
+          `${microsoftWebRedirectUriFromCookie}?account_connection_result=${error.message}`,
+        );
       } else {
-        res.redirect(webBase + `?account_connection_result=unknown-error`);
+        res.redirect(
+          `${microsoftWebRedirectUriFromCookie}?account_connection_result=unknown-error`,
+        );
       }
     }
   }
@@ -314,7 +336,15 @@ export class AuthService {
     req: Request,
     res: Response,
   ): Promise<void> {
-    const webBase = this.configService.getOrThrow<string>('WEB_BASE');
+    const googleWebRedirectUriFromCookie = req.cookies[
+      'google_connection_web_redirect_uri'
+    ] as string;
+
+    res.clearCookie('google_connection_web_redirect_uri', {
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+    });
 
     try {
       const { code, state } = payload;
@@ -381,7 +411,9 @@ export class AuthService {
           session,
         });
       });
-      res.redirect(webBase + '?account_connection_result=success');
+      res.redirect(
+        `${googleWebRedirectUriFromCookie}?account_connection_result=success`,
+      );
     } catch (error) {
       this.logger.error(error);
       res.clearCookie('google_connection_state', {
@@ -394,9 +426,13 @@ export class AuthService {
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
       ];
       if (supportedErrorMessages.includes(error.message as string)) {
-        res.redirect(webBase + `?account_connection_result=${error.message}`);
+        res.redirect(
+          `${googleWebRedirectUriFromCookie}?account_connection_result=${error.message}`,
+        );
       } else {
-        res.redirect(webBase + `?account_connection_result=unknown-error`);
+        res.redirect(
+          `${googleWebRedirectUriFromCookie}?account_connection_result=unknown-error`,
+        );
       }
     }
   }

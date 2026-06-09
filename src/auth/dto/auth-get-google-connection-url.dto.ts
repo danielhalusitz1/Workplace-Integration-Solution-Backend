@@ -1,7 +1,6 @@
-import type { Response } from 'express';
-import { UserDTO } from 'src/user/dto/user.dto';
+import { IsString } from 'class-validator';
 
 export class AuthGetGoogleConnectionUrlDTO {
-  user: UserDTO;
-  res: Response;
+  @IsString()
+  webRedirectUri: string;
 }

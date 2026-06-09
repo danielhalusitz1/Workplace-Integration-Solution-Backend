@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Public } from 'src/decorators/public.decorator';
 import { User } from 'src/decorators/user.decorator';
 import { UserDTO } from 'src/user/dto/user.dto';
 
+import { AuthGetGoogleConnectionUrlDTO } from '../dto/auth-get-google-connection-url.dto';
+import { AuthGetMicrosoftConnectionUrlDTO } from '../dto/auth-get-microsoft-connection-url.dto';
 import { AuthGoogleAuthCallbackDTO } from '../dto/auth-google-auth-callback.dto';
 import { AuthGoogleConnectionCallbackDTO } from '../dto/auth-google-connection-callback.dto';
 import { AuthMicrosoftAuthCallbackDTO } from '../dto/auth-microsoft-auth-callback.dto';
@@ -18,23 +20,25 @@ export class AuthController {
   @ApiResponse({
     type: String,
   })
-  @Get('google-connection-url')
+  @Post('google-connection-url')
   getGoogleConnectionUrl(
+    @Body() payload: AuthGetGoogleConnectionUrlDTO,
     @User() user: UserDTO,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.getGoogleConnectionUrl({ user, res });
+    return this.authService.getGoogleConnectionUrl(payload, user, res);
   }
 
   @ApiResponse({
     type: String,
   })
-  @Get('microsoft-connection-url')
+  @Post('microsoft-connection-url')
   getMicrosoftConnectionUrl(
+    @Body() payload: AuthGetMicrosoftConnectionUrlDTO,
     @User() user: UserDTO,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.getMicrosoftConnectionUrl({ user, res });
+    return this.authService.getMicrosoftConnectionUrl(payload, user, res);
   }
 
   @ApiResponse({

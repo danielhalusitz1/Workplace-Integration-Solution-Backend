@@ -2,10 +2,12 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
+import type { Response } from 'express';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MicrosoftClientService } from 'src/microsoft-client/services/microsoft-client.service';
+import { UserDTO } from 'src/user/dto/user.dto';
 import { encrypt } from 'src/utils/encrypt';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
@@ -157,11 +159,23 @@ export class AuthMicrosoftService {
     }
   }
 
-  async getConnectionUrl(payload: AuthMicrosoftGetConnectionUrlDTO) {
-    const { user, res } = payload;
+  async getConnectionUrl(
+    payload: AuthMicrosoftGetConnectionUrlDTO,
+    user: UserDTO,
+    res: Response,
+  ) {
+    const { webRedirectUri } = payload;
     const state = encrypt(user._id);
 
     res.cookie('microsoft_connection_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+
+    res.cookie('microsoft_connection_web_redirect_uri', {
+      webRedirectUri,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
