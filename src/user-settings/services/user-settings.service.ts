@@ -10,6 +10,7 @@ import { UserDTO } from 'src/user/dto/user.dto';
 
 import { UserSettingsCreateDTO } from '../dto/user-settings-create.dto';
 import { UserSettingsUpdateDTO } from '../dto/user-settings-update.dto';
+import { UserSettingsUpdatePrimaryExternalAccountDTO } from '../dto/user-settings-update-primary-external-account.dto';
 import {
   UserSettings,
   UserSettingsDocument,
@@ -60,6 +61,31 @@ export class UserSettingsService {
     if (!userSettings) {
       throw new BadRequestException(
         ErrorTypes.USER_SETTINGS_SERVICE_UPDATE_NOT_SUCCESS,
+      );
+    }
+
+    return userSettings;
+  }
+
+  async updatePrimaryExternalAccount(
+    payload: UserSettingsUpdatePrimaryExternalAccountDTO,
+  ): Promise<UserSettingsDocument> {
+    const { primaryExternalAccount, userId } = payload;
+    const userSettings = await this.userSettingsModel.findOneAndUpdate(
+      {
+        userId,
+      },
+      {
+        primaryExternalAccount,
+      },
+      {
+        returnDocument: 'after',
+      },
+    );
+
+    if (!userSettings) {
+      throw new NotFoundException(
+        ErrorTypes.USER_SETTINGS_SERVICE_UPDATE_PRIMARY_EXTERNAL_ACCOUNT_SETTING_NOT_FOUND,
       );
     }
 

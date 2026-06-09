@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
 import { Model, QueryFilter, QueryOptions } from 'mongoose';
@@ -13,6 +17,7 @@ import { ExternalAccountConnectDTO } from '../dto/external-account-connect.dto';
 import { ExternalAccountDeleteDTO } from '../dto/external-account-delete.dto';
 import { ExternalAccountDisconnectDTO } from '../dto/external-account-disconnect.dto';
 import { ExternalAccountListDTO } from '../dto/external-account-list.dto';
+import { ExternalAccountSetPrimaryDTO } from '../dto/external-account-set-primary.dto';
 import { ValidateConnectionDTO } from '../dto/external-account-validate-connection.dto';
 import { ExternalAccount } from '../schemas/external-account.schema';
 
@@ -167,6 +172,30 @@ export class ExternalAccountService {
     const { _id } = payload;
 
     await this.externalAccountModel.updateOne({ _id }, { connected: false });
+  }
+
+  async setPrimary(payload: ExternalAccountSetPrimaryDTO, user: UserDTO) {
+    const { _id } = payload;
+
+    const externalAccount = await this.externalAccountModel.findOne({
+      _id,
+      userId: user._id.toString(),
+      connected: true,
+      banned: false,
+    });
+
+    if (!externalAccount) {
+      throw new NotFoundException(
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_SET_PRIMARY_ACCOUNT_NOT_FOUND,
+      );
+    }
+
+    await this.userSettingsService.updatePrimaryExternalAccount({
+      userId: user._id.toString(),
+      primaryExternalAccount: _id.toString(),
+    });
+
+    return externalAccount;
   }
 
   async findOneByFilters(
