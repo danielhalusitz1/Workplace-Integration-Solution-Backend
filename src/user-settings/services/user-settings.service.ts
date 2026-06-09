@@ -1,17 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-  ClientSession,
-  Model,
-  QueryFilter,
-  QueryOptions,
-  UpdateQuery,
-} from 'mongoose';
+import { ClientSession, Model, QueryFilter, QueryOptions } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { UserDTO } from 'src/user/dto/user.dto';
 
 import { UserSettingsCreateDTO } from '../dto/user-settings-create.dto';
-import { UserSettingsSaveDTO } from '../dto/user-settings-save.dto';
+import { UserSettingsUpdateDTO } from '../dto/user-settings-update.dto';
 import {
   UserSettings,
   UserSettingsDocument,
@@ -43,12 +37,12 @@ export class UserSettingsService {
     return userSettings;
   }
 
-  async save(
-    payload: UserSettingsSaveDTO,
+  async update(
+    payload: UserSettingsUpdateDTO,
     user: UserDTO,
   ): Promise<UserSettingsDocument> {
     const { theme, language, firstName, lastName } = payload;
-    const userSettings = await this.updateByFilters(
+    const userSettings = await this.userSettingsModel.findOneAndUpdate(
       { userId: user._id },
       {
         theme,
@@ -61,7 +55,7 @@ export class UserSettingsService {
 
     if (!userSettings) {
       throw new BadRequestException(
-        ErrorTypes.USER_SETTINGS_SERVICE_SAVE_NOT_SUCCESS,
+        ErrorTypes.USER_SETTINGS_SERVICE_UPDATE_NOT_SUCCESS,
       );
     }
 
@@ -73,17 +67,5 @@ export class UserSettingsService {
     options?: QueryOptions<UserSettings>,
   ): Promise<UserSettingsDocument | null> {
     return await this.userSettingsModel.findOne(filters, null, options);
-  }
-
-  async updateByFilters(
-    filters: QueryFilter<UserSettings>,
-    update: UpdateQuery<UserSettings>,
-    options?: QueryOptions<UserSettings>,
-  ): Promise<UserSettingsDocument | null> {
-    return await this.userSettingsModel.findOneAndUpdate(
-      filters,
-      update,
-      options,
-    );
   }
 }

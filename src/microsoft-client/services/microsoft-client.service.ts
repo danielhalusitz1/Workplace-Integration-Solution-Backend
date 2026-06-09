@@ -120,7 +120,7 @@ export class MicrosoftClientService {
           primaryExternalAccount: externalAccount._id.toString(),
         });
 
-        if (!userSettings) {
+        if (userSettings) {
           throw new UnauthorizedException(ErrorTypes.RELOG_REQUIRED);
         } else {
           throw new UnauthorizedException(ErrorTypes.RECONNECT_REQUIRED);

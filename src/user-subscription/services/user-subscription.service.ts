@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
@@ -30,7 +30,7 @@ export class UserSubscriptionService {
       { session },
     );
     if (!userSubscription) {
-      throw new BadRequestException(
+      throw new NotFoundException(
         ErrorTypes.USER_SUBSCRIPTION_SERVICE_GET_BY_USER_ID_NOT_FOUND,
       );
     }
@@ -41,6 +41,7 @@ export class UserSubscriptionService {
     payload: UserSubscriptionCreateFreeDTO,
   ): Promise<UserSubscriptionDocument> {
     const { userId, session } = payload;
+
     return (
       await this.userSubscriptionModel.create(
         [

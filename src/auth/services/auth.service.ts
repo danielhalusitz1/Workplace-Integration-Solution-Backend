@@ -600,38 +600,22 @@ export class AuthService {
       excludeExtraneousValues: true,
     });
 
-    const tokens = await this.getTokens({ user: userDTO });
-    const { accessToken, accessExpiresAt, refreshToken, refreshExpiresAt } =
-      tokens;
+    try {
+      const session = await this.sessionService.update({
+        user: userDTO,
+        oldRefreshToken: refreshTokenFromCookie,
+      });
 
-    const session = await this.sessionService.findOneAndUpdateByFilters(
-      {
-        userId: user._id.toString(),
-        refreshToken: refreshTokenFromCookie,
-        refreshExpiresAt: { $gte: now },
-      },
-      {
-        accessToken,
-        accessExpiresAt,
-        refreshToken,
-        refreshExpiresAt,
-      },
-      {
-        returnDocument: 'after',
-      },
-    );
-
-    if (!session) {
+      this.setCookie({
+        accessToken: session.accessToken,
+        accessExpiresAt: session.accessExpiresAt,
+        refreshToken: session.refreshToken,
+        refreshExpiresAt: session.refreshExpiresAt,
+        res,
+      });
+    } catch {
       throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
-
-    this.setCookie({
-      accessToken,
-      accessExpiresAt,
-      refreshToken,
-      refreshExpiresAt,
-      res,
-    });
   }
 
   private async getTokens(
@@ -672,7 +656,7 @@ export class AuthService {
       throw new BadRequestException(ErrorTypes.RELOG_REQUIRED);
     }
 
-    await this.sessionService.deleteOneByFilters({
+    await this.sessionService.deleteOne({
       userId: user._id.toString(),
       refreshToken: refreshTokenFromCookie,
     });
@@ -683,7 +667,7 @@ export class AuthService {
   async logoutEverywhere(payload: AuthLogoutEveryWhereDTO): Promise<void> {
     const { user, res } = payload;
 
-    await this.sessionService.deleteManyByFilters({
+    await this.sessionService.deleteMany({
       userId: user._id.toString(),
     });
 

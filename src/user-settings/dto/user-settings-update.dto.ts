@@ -4,7 +4,7 @@ import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { Language } from '../enums/language.enum';
 import { Theme } from '../enums/theme.enum';
 
-export class UserSettingsSaveDTO {
+export class UserSettingsUpdateDTO {
   @ApiProperty({
     enum: Theme,
   })
