@@ -220,11 +220,11 @@ export class AuthService {
       );
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('microsoft_connection_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
+
+      if (!webRedirectUri) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
       const supportedErrorMessages = [
         ErrorTypes.CONNECTION_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -313,8 +313,6 @@ export class AuthService {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
       });
-      res.redirect(webBase + `/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`);
-
       const supportedErrorMessages = [
         ErrorTypes.LOGIN_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -393,6 +391,11 @@ export class AuthService {
       );
     } catch (error) {
       this.logger.error(error);
+
+      if (!webRedirectUri) {
+        throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
+      }
+
       const supportedErrorMessages = [
         ErrorTypes.CONNECTION_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),

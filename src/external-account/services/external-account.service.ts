@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { plainToInstance } from 'class-transformer';
 import { Model, QueryFilter, QueryOptions } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { UserDTO } from 'src/user/dto/user.dto';
@@ -7,6 +8,7 @@ import { UserSettingsService } from 'src/user-settings/services/user-settings.se
 import { UserSubscriptionService } from 'src/user-subscription/services/user-subscription.service';
 import { encrypt } from 'src/utils/encrypt';
 
+import { ExternalAccountDTO } from '../dto/external-account.dto';
 import { ExternalAccountConnectDTO } from '../dto/external-account-connect.dto';
 import { ExternalAccountDeleteDTO } from '../dto/external-account-delete.dto';
 import { ExternalAccountDisconnectDTO } from '../dto/external-account-disconnect.dto';
@@ -25,9 +27,13 @@ export class ExternalAccountService {
 
   async list(payload: ExternalAccountListDTO) {
     const { userId } = payload;
-    return this.externalAccountModel
+    const externalAccounts = await this.externalAccountModel
       .find({ userId })
       .sort({ type: 1, createdAt: -1 });
+
+    return plainToInstance(ExternalAccountDTO, externalAccounts, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async delete(payload: ExternalAccountDeleteDTO, user: UserDTO) {

@@ -15,7 +15,7 @@ import { AuthGoogleConnectionUrlDTO } from '../dto/auth-google-connection-url.dt
 import {
   AuthGoogleLoginDTO,
   AuthGoogleLoginResponseDTO,
-} from '../dto/auth-google-logn.dto';
+} from '../dto/auth-google-login.dto';
 
 type GoogleUser = {
   id: string;
