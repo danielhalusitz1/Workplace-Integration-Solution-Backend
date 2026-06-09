@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { Language } from '../enums/language.enum';
 import { Theme } from '../enums/theme.enum';
@@ -20,16 +20,20 @@ export class UserSettingsUpdateDTO {
   @ApiProperty({
     type: 'string',
     required: false,
+    maxLength: 64,
   })
   @IsString()
   @IsOptional()
+  @MaxLength(64)
   firstName?: string;
 
   @ApiProperty({
     type: 'string',
     required: false,
+    maxLength: 64,
   })
   @IsString()
   @IsOptional()
+  @MaxLength(64)
   lastName?: string;
 }
