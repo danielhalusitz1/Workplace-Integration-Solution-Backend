@@ -28,10 +28,10 @@ export class GoogleClientService {
       payload?.redirectUri ??
       this.config.getOrThrow<string>('GOOGLE_AUTH_REDIRECT_URI');
 
-    const base = this.config.getOrThrow<string>('BASE');
+    const host = this.config.getOrThrow<string>('HOST');
     const port = this.config.getOrThrow<string>('PORT');
 
-    const redirectUrl = `${base}:${port}/${redirectUri}`;
+    const redirectUrl = `http://${host}:${port}/${redirectUri}`;
 
     const client = new OAuth2Client(clientId, clientSecret, redirectUrl);
 

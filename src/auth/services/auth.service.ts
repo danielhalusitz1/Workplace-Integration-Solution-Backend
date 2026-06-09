@@ -99,6 +99,8 @@ export class AuthService {
 
       res.clearCookie('google_auth_state', {
         sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
       });
 
       const googleUser = await this.authGoogleService.login({ code });
@@ -131,7 +133,11 @@ export class AuthService {
       res.redirect(webBase);
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('google_auth_state', { sameSite: 'lax' });
+      res.clearCookie('google_auth_state', {
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
       res.redirect(webBase + `/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`);
     }
   }
@@ -168,6 +174,8 @@ export class AuthService {
 
       res.clearCookie('microsoft_connection_state', {
         sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
       });
 
       const decodedState = decrypt(state);
@@ -211,7 +219,11 @@ export class AuthService {
       res.redirect(webBase + '?account_connection_result=success');
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('microsoft_connection_state', { sameSite: 'lax' });
+      res.clearCookie('microsoft_connection_state', {
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
       const supportedErrorMessages = [
         ErrorTypes.CONNECTION_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -255,6 +267,8 @@ export class AuthService {
       }
 
       res.clearCookie('microsoft_auth_state', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
       });
 
@@ -288,7 +302,11 @@ export class AuthService {
       res.redirect(webBase);
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('microsoft_auth_state', { sameSite: 'lax' });
+      res.clearCookie('microsoft_auth_state', {
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
       res.redirect(webBase + `/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`);
     }
   }
@@ -323,6 +341,8 @@ export class AuthService {
 
       res.clearCookie('google_connection_state', {
         sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
       });
 
       const decodedState = decrypt(state);
@@ -366,7 +386,11 @@ export class AuthService {
       res.redirect(webBase + '?account_connection_result=success');
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('google_connection_state', { sameSite: 'lax' });
+      res.clearCookie('google_connection_state', {
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
       const supportedErrorMessages = [
         ErrorTypes.CONNECTION_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -444,9 +468,6 @@ export class AuthService {
         let user: null | UserDocument = null;
 
         if (externalAccount) {
-          if (!externalAccount.connected) {
-            throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
-          }
           user = await this.userService.findOneByFilters(
             {
               _id: new Types.ObjectId(externalAccount.userId),
@@ -465,6 +486,7 @@ export class AuthService {
             expiryDate: payload.expiryDate,
             refreshToken: payload.refreshToken,
             session,
+            excludeConnectionLimitValidation: true,
           });
         } else {
           const otherExternalAccount =
@@ -472,6 +494,7 @@ export class AuthService {
               {
                 email,
                 type: { $ne: externalAccountType },
+                connected: true,
               },
               { session },
             );
@@ -626,7 +649,16 @@ export class AuthService {
   private clearCookie(payload: AuthClearCookieDTO): void {
     const { res } = payload;
 
-    res.clearCookie('access-token', { sameSite: 'lax' });
-    res.clearCookie('refresh-token', { sameSite: 'lax' });
+    res.clearCookie('access-token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    res.clearCookie('refresh-token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
   }
 }

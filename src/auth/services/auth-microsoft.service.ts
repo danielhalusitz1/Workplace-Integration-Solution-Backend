@@ -80,6 +80,7 @@ export class AuthMicrosoftService {
         refreshToken: refreshToken,
         type: msAccount.type,
         userId: msAccount.userId,
+        excludeConnectionLimitValidation: true,
       });
     } catch (error) {
       await this.externalAccountService.disconnect({
@@ -203,9 +204,9 @@ export class AuthMicrosoftService {
     const redirectUri =
       uri ??
       this.configService.getOrThrow<string>('MICROSOFT_AUTH_REDIRECT_URI');
-    const base = this.configService.getOrThrow<string>('BASE');
+    const host = this.configService.getOrThrow<string>('HOST');
     const port = this.configService.getOrThrow<string>('PORT');
 
-    return `${base}:${port}/${redirectUri}`;
+    return `http://${host}:${port}/${redirectUri}`;
   }
 }

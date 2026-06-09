@@ -64,7 +64,12 @@ export class ExternalAccountService {
       type,
       userId,
       session,
+      excludeConnectionLimitValidation,
     } = payload;
+
+    if (!excludeConnectionLimitValidation) {
+      await this.validateConnectionLimit({ userId, type, session });
+    }
 
     const existingForeignAccount = await this.externalAccountModel.findOne(
       { foreignId },
@@ -78,8 +83,6 @@ export class ExternalAccountService {
           ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_USER_ID_MISMATCH,
         );
       }
-
-      await this.validateConnectionLimit({ userId, type, session });
 
       const updatedExternalAccount =
         await this.externalAccountModel.findOneAndUpdate(

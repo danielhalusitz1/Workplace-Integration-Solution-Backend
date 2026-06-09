@@ -87,6 +87,7 @@ export class AuthGoogleService {
       refreshToken: refresh_token,
       type: googleAccount.type,
       userId: googleAccount.userId,
+      excludeConnectionLimitValidation: true,
     });
   }
 
@@ -148,10 +149,10 @@ export class AuthGoogleService {
     const redirectUri = this.configService.getOrThrow<string>(
       'GOOGLE_CONNECTION_REDIRECT_URI',
     );
-    const base = this.configService.getOrThrow<string>('BASE');
+    const host = this.configService.getOrThrow<string>('HOST');
     const port = this.configService.getOrThrow<string>('PORT');
 
-    const redirectUrl = `${base}:${port}/${redirectUri}`;
+    const redirectUrl = `http://${host}:${port}/${redirectUri}`;
 
     const client = this.googleClientService.create({
       redirectUri,
@@ -186,10 +187,10 @@ export class AuthGoogleService {
     const redirectUri = this.configService.getOrThrow<string>(
       'GOOGLE_AUTH_REDIRECT_URI',
     );
-    const base = this.configService.getOrThrow<string>('BASE');
+    const host = this.configService.getOrThrow<string>('HOST');
     const port = this.configService.getOrThrow<string>('PORT');
 
-    const redirectUrl = `${base}:${port}/${redirectUri}`;
+    const redirectUrl = `http://${host}:${port}/${redirectUri}`;
 
     const url = client.generateAuthUrl({
       response_type: 'code',
