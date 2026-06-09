@@ -144,7 +144,16 @@ export class AuthService {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
       });
-      res.redirect(webBase + `/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`);
+      const supportedErrorMessages = [
+        ErrorTypes.LOGIN_FAILED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_BANNED.toString(),
+      ];
+      if (supportedErrorMessages.includes(error.message as string)) {
+        res.redirect(`${webBase}?auth_result=${error.message}`);
+      } else {
+        res.redirect(`${webBase}?auth_result=${ErrorTypes.LOGIN_FAILED}`);
+      }
     }
   }
 
@@ -329,6 +338,17 @@ export class AuthService {
         secure: process.env.NODE_ENV === 'production',
       });
       res.redirect(webBase + `/welcome?auth_result=${ErrorTypes.LOGIN_FAILED}`);
+
+      const supportedErrorMessages = [
+        ErrorTypes.LOGIN_FAILED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
+        ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_BANNED.toString(),
+      ];
+      if (supportedErrorMessages.includes(error.message as string)) {
+        res.redirect(`${webBase}?auth_result=${error.message}`);
+      } else {
+        res.redirect(`${webBase}?auth_result=${ErrorTypes.LOGIN_FAILED}`);
+      }
     }
   }
 
