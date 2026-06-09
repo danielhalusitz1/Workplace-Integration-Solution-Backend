@@ -174,8 +174,7 @@ export class AuthMicrosoftService {
       maxAge: 5 * 60 * 1000,
     });
 
-    res.cookie('microsoft_connection_web_redirect_uri', {
-      webRedirectUri,
+    res.cookie('microsoft_connection_web_redirect_uri', webRedirectUri, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
