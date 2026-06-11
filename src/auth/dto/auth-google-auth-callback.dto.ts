@@ -17,4 +17,12 @@ export class AuthGoogleAuthCallbackDTO {
   @IsString()
   @IsOptional()
   state?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  error?: string;
 }
