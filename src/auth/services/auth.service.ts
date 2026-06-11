@@ -82,7 +82,12 @@ export class AuthService {
     const webBase = this.configService.getOrThrow<string>('WEB_BASE');
 
     try {
-      const { code, state } = payload;
+      const { code, state, error } = payload;
+
+      if (error) {
+        res.redirect(webBase);
+        return;
+      }
 
       if (!code) {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
@@ -164,7 +169,12 @@ export class AuthService {
     let webRedirectUri: string | undefined;
 
     try {
-      const { code, state } = payload;
+      const { code, state, error } = payload;
+
+      if (error) {
+        res.redirect(webBase);
+        return;
+      }
 
       if (!code || !state) {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
@@ -250,7 +260,12 @@ export class AuthService {
     const webBase = this.configService.getOrThrow<string>('WEB_BASE');
 
     try {
-      const { code, state } = payload;
+      const { code, state, error } = payload;
+
+      if (error) {
+        res.redirect(webBase);
+        return;
+      }
 
       if (!code) {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
@@ -334,7 +349,12 @@ export class AuthService {
     let webRedirectUri: string | undefined;
 
     try {
-      const { code, state } = payload;
+      const { code, state, error } = payload;
+
+      if (error) {
+        res.redirect(webBase);
+        return;
+      }
 
       if (!code || !state) {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
