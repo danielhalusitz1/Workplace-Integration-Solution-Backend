@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EmailGoogleSyncModule } from 'src/email-google-sync/email-google-sync.module';
 import { ExternalAccountModule } from 'src/external-account/external-account.module';
 import { GoogleClientModule } from 'src/google-client/google-client.module';
 import { MicrosoftClientModule } from 'src/microsoft-client/microsoft-client.module';
@@ -21,6 +22,7 @@ import { AuthMicrosoftService } from './services/auth-microsoft.service';
     UserModule,
     UserSettingsModule,
     UserSubscriptionModule,
+    EmailGoogleSyncModule,
   ],
   providers: [AuthService, AuthGoogleService, AuthMicrosoftService],
   controllers: [AuthController],

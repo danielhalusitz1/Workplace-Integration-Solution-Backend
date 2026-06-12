@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
+import { EmailGoogleSyncService } from 'src/email-google-sync/services/email-google-sync.service';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
@@ -50,6 +51,7 @@ export class AuthService {
     private readonly userSettingsService: UserSettingsService,
     private readonly mongodbTransactionService: MongodbTransactionService,
     private readonly userSubscriptionService: UserSubscriptionService,
+    private readonly emailGoogleSyncService: EmailGoogleSyncService,
   ) {}
 
   getGoogleConnectionUrl(
@@ -140,6 +142,9 @@ export class AuthService {
         refreshExpiresAt: tokens.refreshExpiresAt,
         res,
       });
+      await this.emailGoogleSyncService.startGoogleEmailInitialSync(
+        tokens.user._id.toString(),
+      );
       res.redirect(webBase);
     } catch (error) {
       this.logger.error(error);
@@ -568,6 +573,7 @@ export class AuthService {
           refreshToken: authSession.refreshToken,
           accessExpiresAt: authSession.accessExpiresAt,
           refreshExpiresAt: authSession.refreshExpiresAt,
+          user: userDTO,
         };
       });
 
