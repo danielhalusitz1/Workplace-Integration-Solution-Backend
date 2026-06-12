@@ -39,7 +39,7 @@ export class Email {
   @Prop()
   historyId?: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   emailId: string;
 
   @Prop({ required: true })

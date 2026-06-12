@@ -6,7 +6,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
 import { Model, QueryFilter, QueryOptions } from 'mongoose';
+import { EmailService } from 'src/email/services/email.service';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
+import { QueueService } from 'src/queue/services/queue.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
 import { UserSubscriptionService } from 'src/user-subscription/services/user-subscription.service';
@@ -28,6 +31,9 @@ export class ExternalAccountService {
     private readonly externalAccountModel: Model<ExternalAccount>,
     private readonly userSettingsService: UserSettingsService,
     private readonly userSubscriptionService: UserSubscriptionService,
+    private readonly queueService: QueueService,
+    private readonly mongodbTransactionService: MongodbTransactionService,
+    private readonly emailService: EmailService,
   ) {}
 
   async list(payload: ExternalAccountListDTO) {
@@ -52,10 +58,28 @@ export class ExternalAccountService {
       );
     }
 
-    const result = await this.externalAccountModel.deleteOne({
-      _id: payload._id,
-      userId: user._id.toString(),
-    });
+    const result = await this.mongodbTransactionService.withTransaction(
+      async (session) => {
+        await this.queueService.deleteEmailQueueByExternalAccountId(
+          payload._id.toString(),
+          session,
+        );
+
+        await this.emailService.deleteMany({
+          userId: user._id.toString(),
+          externalAccountId: payload._id.toString(),
+          session,
+        });
+
+        return await this.externalAccountModel.deleteOne(
+          {
+            _id: payload._id,
+            userId: user._id.toString(),
+          },
+          { session },
+        );
+      },
+    );
 
     if (result.deletedCount === 0) {
       throw new BadRequestException(

@@ -60,7 +60,7 @@ export function parseGmailEmail(
 
   parseParts(email.payload?.parts || []);
 
-  if (!email.id) {
+  if (!email.id || !email.threadId || !email.labelIds) {
     throw new Error('Invalid email');
   }
 
@@ -72,8 +72,8 @@ export function parseGmailEmail(
     body: textBody,
     historyId: email.historyId ?? undefined,
     emailId: email.id,
-    labelIds: email.labelIds ?? [],
-    threadId: email.threadId ?? '',
+    labelIds: email.labelIds,
+    threadId: email.threadId,
     emailSentAt: parseInternalDate(email.internalDate),
     attachments,
   };

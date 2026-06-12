@@ -4,6 +4,7 @@ import { ExternalAccountModule } from 'src/external-account/external-account.mod
 import { GoogleClientModule } from 'src/google-client/google-client.module';
 import { QueueModule } from 'src/queue/queue.module';
 
+import { EmailGoogleSyncBackfillProcessor } from './processors/email-google-sync-backfill.processor';
 import { EmailGoogleSyncService } from './services/email-google-sync.service';
 
 @Module({
@@ -13,7 +14,7 @@ import { EmailGoogleSyncService } from './services/email-google-sync.service';
     ExternalAccountModule,
     EmailModule,
   ],
-  providers: [EmailGoogleSyncService],
+  providers: [EmailGoogleSyncService, EmailGoogleSyncBackfillProcessor],
   exports: [EmailGoogleSyncService],
 })
 export class EmailGoogleSyncModule {}

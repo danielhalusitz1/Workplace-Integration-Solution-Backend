@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { EmailModule } from 'src/email/email.module';
+import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
+import { QueueModule } from 'src/queue/queue.module';
 import { UserSettingsModule } from 'src/user-settings/user-settings.module';
 import { UserSubscriptionModule } from 'src/user-subscription/user-subscription.module';
 
@@ -15,11 +18,13 @@ import { ExternalAccountService } from './services/external-account.service';
     MongooseModule.forFeature([
       { name: ExternalAccount.name, schema: ExternalAccountSchema },
     ]),
+    EmailModule,
     UserSettingsModule,
     UserSubscriptionModule,
+    QueueModule,
   ],
   controllers: [ExternalAccountController],
-  providers: [ExternalAccountService],
+  providers: [ExternalAccountService, MongodbTransactionService],
   exports: [ExternalAccountService],
 })
 export class ExternalAccountModule {}

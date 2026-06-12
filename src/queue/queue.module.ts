@@ -1,11 +1,17 @@
 import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 
 import { QueueName } from './enums/queue-name.enum';
+import EmailQueueSchema, { EmailQueue } from './schema/email-queue.schema';
+import { QueueService } from './services/queue.service';
 
 @Module({
   imports: [
+    MongooseModule.forFeature([
+      { name: EmailQueue.name, schema: EmailQueueSchema },
+    ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
@@ -17,20 +23,11 @@ import { QueueName } from './enums/queue-name.enum';
       inject: [ConfigService],
     }),
     BullModule.registerQueue(
-      { name: QueueName.EMAIL_GOOGLE_SYNC_INIT },
-      { name: QueueName.EMAIL_GOOGLE_SYNC_CHUNK },
-      { name: QueueName.EMAIL_GOOGLE_SYNC_PAGE },
-      { name: QueueName.CALENDAR_GOOGLE_SYNC_INIT },
-      { name: QueueName.CALENDAR_GOOGLE_SYNC_CHUNK },
-      { name: QueueName.CALENDAR_GOOGLE_SYNC_PAGE },
-      { name: QueueName.EMAIL_MICROSOFT_SYNC_INIT },
-      { name: QueueName.EMAIL_MICROSOFT_SYNC_CHUNK },
-      { name: QueueName.EMAIL_MICROSOFT_SYNC_PAGE },
-      { name: QueueName.CALENDAR_MICROSOFT_SYNC_INIT },
-      { name: QueueName.CALENDAR_MICROSOFT_SYNC_CHUNK },
-      { name: QueueName.CALENDAR_MICROSOFT_SYNC_PAGE },
+      { name: QueueName.EMAIL_GOOGLE_BACKFILL },
+      { name: QueueName.EMAIL_MICROSOFT_BACKFILL },
     ),
   ],
-  exports: [BullModule],
+  providers: [QueueService],
+  exports: [BullModule, QueueService],
 })
 export class QueueModule {}
