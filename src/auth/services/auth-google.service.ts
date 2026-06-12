@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Credentials, OAuth2Client } from 'google-auth-library';
+import { Credentials } from 'google-auth-library';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
@@ -65,7 +65,7 @@ export class AuthGoogleService {
   private async updateAccessToken(googleAccount: ExternalAccount) {
     const newCredentials = await this.googleClientService.run(
       googleAccount,
-      async (client: OAuth2Client) => {
+      async ({ client }) => {
         const { credentials } = await client.refreshAccessToken();
 
         return credentials;

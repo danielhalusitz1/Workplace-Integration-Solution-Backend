@@ -142,9 +142,7 @@ export class AuthService {
         refreshExpiresAt: tokens.refreshExpiresAt,
         res,
       });
-      await this.emailGoogleSyncService.startGoogleEmailInitialSync(
-        tokens.user._id.toString(),
-      );
+
       res.redirect(webBase);
     } catch (error) {
       this.logger.error(error);
@@ -556,6 +554,9 @@ export class AuthService {
             });
           } else {
             user = await this.createUser({ ...payload, session });
+            await this.emailGoogleSyncService.startGoogleEmailInitialSync(
+              user._id.toString(),
+            );
           }
         }
 

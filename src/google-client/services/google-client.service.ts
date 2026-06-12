@@ -1,6 +1,7 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
+import { gmail, gmail_v1 } from 'googleapis/build/src/apis/gmail';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
@@ -45,7 +46,13 @@ export class GoogleClientService {
 
   async run<T>(
     externalAccount: ExternalAccount,
-    fn: (client: OAuth2Client) => Promise<T>,
+    fn: ({
+      client,
+      gmailApi,
+    }: {
+      client: OAuth2Client;
+      gmailApi: gmail_v1.Gmail;
+    }) => Promise<T>,
   ) {
     const accessToken = decrypt(externalAccount.accessTokenEncrypted);
     const refreshToken = decrypt(externalAccount.refreshTokenEncrypted);
@@ -53,8 +60,13 @@ export class GoogleClientService {
 
     const client = this.create({ refreshToken, accessToken, expiryDate });
 
+    const gmailApi = gmail({
+      version: 'v1',
+      auth: client,
+    });
+
     try {
-      return await fn(client);
+      return await fn({ client, gmailApi });
     } catch (e) {
       if (e.response?.data?.error === 'invalid_grant') {
         this.logger.error(e);

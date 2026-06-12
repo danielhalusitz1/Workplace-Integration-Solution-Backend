@@ -1,7 +1,6 @@
 import { InjectQueue } from '@nestjs/bull';
 import { Injectable } from '@nestjs/common';
 import type { Queue } from 'bull';
-import { JobStatus } from 'src/queue/enums/job-status.enum';
 import { QueueName } from 'src/queue/enums/queue-name.enum';
 
 @Injectable()
@@ -19,8 +18,5 @@ export class EmailGoogleSyncService {
         priority: 10,
       },
     );
-    return {
-      status: JobStatus.STARTED,
-    };
   }
 }

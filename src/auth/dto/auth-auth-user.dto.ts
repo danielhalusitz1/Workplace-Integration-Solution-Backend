@@ -1,5 +1,3 @@
-import { UserDTO } from 'src/user/dto/user.dto';
-
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 export class AuthAuthUserDTO {
@@ -18,5 +16,4 @@ export class AuthAuthUserResponseDTO {
   accessExpiresAt: Date;
   refreshToken: string;
   refreshExpiresAt: Date;
-  user: UserDTO;
 }
