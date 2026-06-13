@@ -101,6 +101,12 @@ export class AuthService {
         | string
         | undefined;
 
+      res.clearCookie('google_auth_state', {
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
+
       if (!state || !googleStateFromCookie || state !== googleStateFromCookie) {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
@@ -142,7 +148,11 @@ export class AuthService {
       }
     } catch (error) {
       this.logger.error(error);
-
+      res.clearCookie('google_auth_state', {
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
       const supportedErrorMessages = [
         ErrorTypes.LOGIN_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -153,12 +163,6 @@ export class AuthService {
       } else {
         res.redirect(`${webBase}?auth_result=${ErrorTypes.LOGIN_FAILED}`);
       }
-    } finally {
-      res.clearCookie('google_auth_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
     }
   }
 
@@ -276,6 +280,12 @@ export class AuthService {
         | string
         | undefined;
 
+      res.clearCookie('microsoft_auth_state', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
+
       if (
         !state ||
         !microsoftStateFromCookie ||
@@ -315,6 +325,12 @@ export class AuthService {
     } catch (error) {
       this.logger.error(error);
 
+      res.clearCookie('microsoft_auth_state', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
+
       const supportedErrorMessages = [
         ErrorTypes.LOGIN_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -325,12 +341,6 @@ export class AuthService {
       } else {
         res.redirect(`${webBase}?auth_result=${ErrorTypes.LOGIN_FAILED}`);
       }
-    } finally {
-      res.clearCookie('microsoft_auth_state', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-      });
     }
   }
 

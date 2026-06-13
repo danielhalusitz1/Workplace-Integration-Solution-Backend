@@ -14,7 +14,7 @@ export class EmailService {
     return this.emailModel.findOneAndUpdate(
       { emailId: email.emailId, externalAccountId: email.externalAccountId },
       { ...email },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: 'after' },
     );
   }
 }
