@@ -3,4 +3,5 @@ export enum BullQueueJobStatus {
   STARTED = 'STARTED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
+  FAILED = 'FAILED',
 }

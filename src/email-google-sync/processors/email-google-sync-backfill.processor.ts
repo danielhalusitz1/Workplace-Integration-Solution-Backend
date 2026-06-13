@@ -1,17 +1,21 @@
 import { Process, Processor } from '@nestjs/bull';
+import { Logger } from '@nestjs/common';
 import type { Job } from 'bull';
-import moment from 'moment';
 import { Types } from 'mongoose';
 import { EmailService } from 'src/email/services/email.service';
+import { ExternalAccountStatus } from 'src/external-account/enums/external-account.status';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { GoogleClientService } from 'src/google-client/services/google-client.service';
 import { BullQueueName } from 'src/queue/enums/bull-queue-name.enum';
 import { BullQueueStep } from 'src/queue/enums/bull-queue-step.enum';
 import { QueueService } from 'src/queue/services/queue.service';
+import { buildGmailDateQuery } from 'src/utils/gmail-search-query';
 import { parseGmailEmail } from 'src/utils/google-email-parse';
 
 @Processor(BullQueueName.EMAIL_GOOGLE_BACKFILL)
 export class EmailGoogleSyncBackfillProcessor {
+  private readonly logger = new Logger(EmailGoogleSyncBackfillProcessor.name);
+
   constructor(
     private readonly queueService: QueueService,
     private readonly emailService: EmailService,
@@ -41,12 +45,16 @@ export class EmailGoogleSyncBackfillProcessor {
 
     const externalAccount = await this.externalAccountService.findOneByFilters({
       _id: new Types.ObjectId(externalAccountId),
+      status: ExternalAccountStatus.CONNECTED,
     });
 
     if (!externalAccount) {
-      throw new Error(
-        'External account not found for id: ' + externalAccountId,
-      );
+      await this.queueService.failJob({
+        externalAccountId,
+        step,
+        queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+      });
+      return;
     }
 
     let pageToken = emailQueue.nextPage;
@@ -57,7 +65,7 @@ export class EmailGoogleSyncBackfillProcessor {
         async ({ gmailApi }) => {
           const pageRes = await gmailApi.users.messages.list({
             userId: 'me',
-            q: `after:${moment(from).format('YYYY/MM/DD')} before:${moment(to).format('YYYY/MM/DD')}`,
+            q: buildGmailDateQuery(from, to),
             maxResults: 100,
             pageToken,
           });
@@ -75,13 +83,18 @@ export class EmailGoogleSyncBackfillProcessor {
               format: 'full',
             });
 
-            const parsedEmail = parseGmailEmail(
-              messageDetails.data,
-              externalAccount.userId,
-              externalAccountId,
-            );
-
-            await this.emailService.insertOne(parsedEmail);
+            try {
+              const parsedEmail = parseGmailEmail(
+                messageDetails.data,
+                externalAccount.userId,
+                externalAccountId,
+              );
+              await this.emailService.insertOne(parsedEmail);
+            } catch (error) {
+              this.logger.error(
+                `Error parsing email ${message.id}: ${error.message}`,
+              );
+            }
           }
 
           return pageRes.data.nextPageToken ?? undefined;

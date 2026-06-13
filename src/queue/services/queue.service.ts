@@ -93,7 +93,26 @@ export class QueueService {
       { _id: new Types.ObjectId(_id) },
       {
         status: BullQueueJobStatus.COMPLETED,
-        $unset: { leaseUntil: 1, lastAttemptAt: 1 },
+        $unset: { leaseUntil: 1, lastAttemptAt: 1, nextPage: 1 },
+      },
+      { returnDocument: 'after' },
+    );
+  }
+
+  async failJob({
+    externalAccountId,
+    step,
+    queueName,
+  }: {
+    externalAccountId: string;
+    step: BullQueueStep;
+    queueName: BullQueueName;
+  }) {
+    return await this.bullQueueModel.findOneAndUpdate(
+      { externalAccountId, step, queueName },
+      {
+        status: BullQueueJobStatus.FAILED,
+        $unset: { leaseUntil: 1, lastAttemptAt: 1, nextPage: 1 },
       },
       { returnDocument: 'after' },
     );

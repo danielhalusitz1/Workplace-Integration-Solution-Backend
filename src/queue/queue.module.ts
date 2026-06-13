@@ -19,6 +19,9 @@ import { QueueService } from './services/queue.service';
           host: config.getOrThrow<string>('REDIS_HOST'),
           port: config.getOrThrow<number>('REDIS_PORT'),
         },
+        settings: {
+          lockDuration: 10 * 60 * 1000,
+        },
       }),
       inject: [ConfigService],
     }),
