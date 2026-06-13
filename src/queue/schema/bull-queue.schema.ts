@@ -34,6 +34,9 @@ export class BullQueue {
   @Prop({ default: Date.now })
   lastAttemptAt?: Date;
 
+  @Prop({ default: 0 })
+  repairAttempts: number;
+
   createdAt: Date;
 
   updatedAt: Date;

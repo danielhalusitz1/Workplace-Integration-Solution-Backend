@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bull';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Queue } from 'bull';
 import { ClientSession, Model, QueryFilter, Types } from 'mongoose';
@@ -9,8 +9,12 @@ import { BullQueueName } from '../enums/bull-queue-name.enum';
 import { BullQueueStep } from '../enums/bull-queue-step.enum';
 import { BullQueue } from '../schema/bull-queue.schema';
 
+const MAX_REPAIR_ATTEMPTS = 12;
+
 @Injectable()
 export class QueueService {
+  private readonly logger = new Logger(QueueService.name);
+
   constructor(
     @InjectModel(BullQueue.name)
     private readonly bullQueueModel: Model<BullQueue>,
@@ -47,6 +51,19 @@ export class QueueService {
     step: BullQueueStep;
     queueName: BullQueueName;
   }) {
+    const existingJob = await this.bullQueueModel.findOne({
+      externalAccountId,
+      step,
+      queueName,
+      status: { $in: [BullQueueJobStatus.PENDING, BullQueueJobStatus.STARTED] },
+    });
+
+    if (existingJob) {
+      this.logger.warn(
+        `Job already exists for external account ${externalAccountId} and step ${step} and queue name ${queueName}`,
+      );
+      return;
+    }
     return await this.bullQueueModel.create({
       externalAccountId,
       step,
@@ -93,10 +110,29 @@ export class QueueService {
       { _id: new Types.ObjectId(_id) },
       {
         status: BullQueueJobStatus.COMPLETED,
-        $unset: { leaseUntil: 1, lastAttemptAt: 1, nextPage: 1 },
+        $unset: {
+          leaseUntil: 1,
+          lastAttemptAt: 1,
+          nextPage: 1,
+          repairAttempts: 1,
+        },
       },
       { returnDocument: 'after' },
     );
+  }
+
+  async incrementRepairAttempt({ _id }: { _id: string }) {
+    const updated = await this.bullQueueModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(_id) },
+      { $inc: { repairAttempts: 1 } },
+      { returnDocument: 'after' },
+    );
+
+    return updated?.repairAttempts ?? 0;
+  }
+
+  getMaxRepairAttempts() {
+    return MAX_REPAIR_ATTEMPTS;
   }
 
   async failJob({
@@ -108,14 +144,32 @@ export class QueueService {
     step: BullQueueStep;
     queueName: BullQueueName;
   }) {
-    return await this.bullQueueModel.findOneAndUpdate(
+    const jobId = this.getJobId({ externalAccountId, step, queueName });
+
+    const failed = await this.bullQueueModel.findOneAndUpdate(
       { externalAccountId, step, queueName },
       {
         status: BullQueueJobStatus.FAILED,
-        $unset: { leaseUntil: 1, lastAttemptAt: 1, nextPage: 1 },
+        $unset: {
+          leaseUntil: 1,
+          lastAttemptAt: 1,
+          nextPage: 1,
+          repairAttempts: 1,
+        },
       },
       { returnDocument: 'after' },
     );
+
+    switch (queueName) {
+      case BullQueueName.EMAIL_GOOGLE_BACKFILL:
+        await this.emailGoogleBackfillQueue.removeJobs(jobId);
+        break;
+      case BullQueueName.EMAIL_MICROSOFT_BACKFILL:
+        await this.emailMicrosoftBackfillQueue.removeJobs(jobId);
+        break;
+    }
+
+    return failed;
   }
 
   async updateJob({ _id, nextPage }: { _id: string; nextPage?: string }) {

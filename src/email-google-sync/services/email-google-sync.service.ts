@@ -33,27 +33,44 @@ export class EmailGoogleSyncService {
 
     for await (const job of cursor) {
       try {
+        const repairAttempts = await this.queueService.incrementRepairAttempt({
+          _id: job._id.toString(),
+        });
+
+        if (repairAttempts > this.queueService.getMaxRepairAttempts()) {
+          await this.queueService.failJob({
+            externalAccountId: job.externalAccountId,
+            step: job.step,
+            queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+          });
+          this.logger.warn(
+            `Job ${job.jobId} marked FAILED after ${repairAttempts} repair attempts`,
+          );
+          continue;
+        }
+
+        const now = new Date();
         switch (job.jobId) {
           case this.queueService.getJobId({
             externalAccountId: job.externalAccountId,
             step: BullQueueStep.DAYS_3,
             queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
           }):
-            await this.days3Backfill(job.externalAccountId, job.createdAt);
+            await this.days3Backfill(job.externalAccountId, now);
             break;
           case this.queueService.getJobId({
             externalAccountId: job.externalAccountId,
             step: BullQueueStep.DAYS_30,
             queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
           }):
-            await this.days30Backfill(job.externalAccountId, job.createdAt);
+            await this.days30Backfill(job.externalAccountId, now);
             break;
           case this.queueService.getJobId({
             externalAccountId: job.externalAccountId,
             step: BullQueueStep.DAYS_90,
             queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
           }):
-            await this.days90Backfill(job.externalAccountId, job.createdAt);
+            await this.days90Backfill(job.externalAccountId, now);
             break;
         }
       } catch (error) {
