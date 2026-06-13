@@ -1,16 +1,16 @@
 import { Process, Processor } from '@nestjs/bull';
 import type { Job } from 'bull';
+import moment from 'moment';
 import { Types } from 'mongoose';
 import { EmailService } from 'src/email/services/email.service';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { GoogleClientService } from 'src/google-client/services/google-client.service';
-import { EmailQueueStep } from 'src/queue/enums/email-queue-step.enum';
-import { JobStatus } from 'src/queue/enums/job-status.enum';
-import { QueueName } from 'src/queue/enums/queue-name.enum';
+import { BullQueueName } from 'src/queue/enums/bull-queue-name.enum';
+import { BullQueueStep } from 'src/queue/enums/bull-queue-step.enum';
 import { QueueService } from 'src/queue/services/queue.service';
 import { parseGmailEmail } from 'src/utils/google-email-parse';
 
-@Processor(QueueName.EMAIL_GOOGLE_BACKFILL)
+@Processor(BullQueueName.EMAIL_GOOGLE_BACKFILL)
 export class EmailGoogleSyncBackfillProcessor {
   constructor(
     private readonly queueService: QueueService,
@@ -22,28 +22,20 @@ export class EmailGoogleSyncBackfillProcessor {
   async handle(
     job: Job<{
       externalAccountId: string;
-      step: EmailQueueStep;
-      from: Date;
-      to: Date;
+      step: BullQueueStep;
+      from: string;
+      to: string;
     }>,
   ) {
     const { from, to, externalAccountId, step } = job.data;
 
-    const jobId = job.id.toString();
-
-    let emailQueue = await this.queueService.findOneEmailQueue({
+    const emailQueue = await this.queueService.startOrRestartJob({
       externalAccountId,
       step,
-      status: JobStatus.STARTED,
     });
 
     if (!emailQueue) {
-      emailQueue = await this.queueService.createEmailQueue({
-        externalAccountId,
-        jobId,
-        step,
-        status: JobStatus.STARTED,
-      });
+      return;
     }
 
     const externalAccount = await this.externalAccountService.findOneByFilters({
@@ -59,34 +51,52 @@ export class EmailGoogleSyncBackfillProcessor {
     let pageToken = emailQueue.nextPage;
 
     do {
-      const page = await this.googleClientService.run(
+      const nextPageToken = await this.googleClientService.run(
         externalAccount,
         async ({ gmailApi }) => {
           const pageRes = await gmailApi.users.messages.list({
             userId: 'me',
-            q: `after:${from.toISOString()} before:${to.toISOString()}`,
+            q: `after:${moment(from).format('YYYY/MM/DD')} before:${moment(to).format('YYYY/MM/DD')}`,
             maxResults: 100,
             pageToken,
           });
-          return pageRes.data;
+
+          const messages = pageRes.data.messages ?? [];
+
+          for (const message of messages) {
+            if (!message.id) {
+              continue;
+            }
+
+            const messageDetails = await gmailApi.users.messages.get({
+              userId: 'me',
+              id: message.id,
+              format: 'full',
+            });
+
+            const parsedEmail = parseGmailEmail(
+              messageDetails.data,
+              externalAccount.userId,
+              externalAccountId,
+            );
+
+            await this.emailService.insertOne(parsedEmail);
+          }
+
+          return pageRes.data.nextPageToken ?? undefined;
         },
       );
 
-      const parsedMessages =
-        page.messages?.map((message) =>
-          parseGmailEmail(message, externalAccountId),
-        ) ?? [];
+      await this.queueService.updateJob({
+        _id: emailQueue._id.toString(),
+        nextPage: nextPageToken,
+      });
 
-      pageToken = page.nextPageToken ?? undefined;
-
-      await this.emailService.insertMany(parsedMessages, { ordered: false });
+      pageToken = nextPageToken ?? undefined;
     } while (pageToken);
 
-    await this.queueService.updateEmailQueue({
-      externalAccountId,
-      jobId,
-      step,
-      status: JobStatus.COMPLETED,
+    await this.queueService.completeJob({
+      _id: emailQueue._id.toString(),
     });
   }
 }

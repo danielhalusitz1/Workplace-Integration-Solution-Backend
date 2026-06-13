@@ -1,4 +1,4 @@
-export enum JobStatus {
+export enum BullQueueJobStatus {
   PENDING = 'PENDING',
   STARTED = 'STARTED',
   COMPLETED = 'COMPLETED',

@@ -8,6 +8,8 @@ import { plainToInstance } from 'class-transformer';
 import { Model, QueryFilter, QueryOptions } from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
+import { BullQueueName } from 'src/queue/enums/bull-queue-name.enum';
+import { BullQueueStep } from 'src/queue/enums/bull-queue-step.enum';
 import { QueueService } from 'src/queue/services/queue.service';
 import { UserDTO } from 'src/user/dto/user.dto';
 import { UserSettingsService } from 'src/user-settings/services/user-settings.service';
@@ -68,7 +70,7 @@ export class ExternalAccountService {
 
     const result = await this.mongodbTransactionService.withTransaction(
       async (session) => {
-        await this.queueService.deleteEmailQueueByExternalAccountId(
+        await this.queueService.deleteJobByExternalAccountId(
           payload._id.toString(),
           session,
         );
@@ -91,7 +93,9 @@ export class ExternalAccountService {
     }
   }
 
-  async connect(payload: ExternalAccountConnectDTO) {
+  async connect(
+    payload: ExternalAccountConnectDTO,
+  ): Promise<{ externalAccount: ExternalAccount; runBackfillJobs: boolean }> {
     const {
       _id,
       foreignId,
@@ -145,7 +149,10 @@ export class ExternalAccountService {
         );
       }
 
-      return updatedExternalAccount;
+      return {
+        externalAccount: updatedExternalAccount,
+        runBackfillJobs: false,
+      };
     } else {
       if (!refreshToken) {
         throw new BadRequestException(
@@ -155,7 +162,7 @@ export class ExternalAccountService {
 
       await this.validateConnectionLimit({ userId, type, session });
 
-      return (
+      const newExternalAccount = (
         await this.externalAccountModel.create(
           [
             {
@@ -172,6 +179,25 @@ export class ExternalAccountService {
           { session },
         )
       )[0];
+
+      await this.queueService.appointJob({
+        externalAccountId: newExternalAccount._id.toString(),
+        step: BullQueueStep.DAYS_3,
+        queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+      });
+
+      await this.queueService.appointJob({
+        externalAccountId: newExternalAccount._id.toString(),
+        step: BullQueueStep.DAYS_30,
+        queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+      });
+
+      await this.queueService.appointJob({
+        externalAccountId: newExternalAccount._id.toString(),
+        step: BullQueueStep.DAYS_90,
+        queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+      });
+      return { externalAccount: newExternalAccount, runBackfillJobs: true };
     }
   }
 

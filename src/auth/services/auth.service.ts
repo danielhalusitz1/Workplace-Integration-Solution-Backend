@@ -7,6 +7,7 @@ import { Types } from 'mongoose';
 import { EmailGoogleSyncService } from 'src/email-google-sync/services/email-google-sync.service';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { ExternalAccountStatus } from 'src/external-account/enums/external-account.status';
+import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { SessionService } from 'src/session/services/session.service';
@@ -113,7 +114,7 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
 
-      const tokens = await this.authUser({
+      const authResult = await this.authUser({
         foreignId: googleUser.id,
         email: googleUser.email,
         firstName: googleUser.firstName,
@@ -125,14 +126,20 @@ export class AuthService {
       });
 
       this.setCookie({
-        accessToken: tokens.accessToken,
-        accessExpiresAt: tokens.accessExpiresAt,
-        refreshToken: tokens.refreshToken,
-        refreshExpiresAt: tokens.refreshExpiresAt,
+        accessToken: authResult.accessToken,
+        accessExpiresAt: authResult.accessExpiresAt,
+        refreshToken: authResult.refreshToken,
+        refreshExpiresAt: authResult.refreshExpiresAt,
         res,
       });
 
       res.redirect(webBase);
+
+      if (authResult.runBackfillJobs) {
+        await this.emailGoogleSyncService.startGoogleEmailBackfill(
+          authResult.externalAccount._id.toString(),
+        );
+      }
     } catch (error) {
       this.logger.error(error);
 
@@ -452,25 +459,29 @@ export class AuthService {
       session,
     });
 
-    await this.externalAccountService.connect({
-      _id: externalAccountMongoId,
-      foreignId,
-      refreshToken,
-      accessToken,
-      expiryDate,
-      userId: user._id.toString(),
-      type: externalAccountType,
-      email,
-      session,
-    });
+    const { externalAccount, runBackfillJobs } =
+      await this.externalAccountService.connect({
+        _id: externalAccountMongoId,
+        foreignId,
+        refreshToken,
+        accessToken,
+        expiryDate,
+        userId: user._id.toString(),
+        type: externalAccountType,
+        email,
+        session,
+      });
 
-    return user;
+    return { user, externalAccount, runBackfillJobs };
   }
 
   private async authUser(
     payload: AuthAuthUserDTO,
   ): Promise<AuthAuthUserResponseDTO> {
     const { foreignId, email, externalAccountType } = payload;
+
+    let authenticatedExternalAccount: ExternalAccount | undefined;
+    let runBackfillJobs = false;
 
     const transactionResult =
       await this.mongodbTransactionService.withTransaction(async (session) => {
@@ -494,7 +505,7 @@ export class AuthService {
         }
 
         if (user) {
-          await this.externalAccountService.connect({
+          const connectResult = await this.externalAccountService.connect({
             userId: user._id.toString(),
             foreignId,
             type: externalAccountType,
@@ -504,6 +515,9 @@ export class AuthService {
             refreshToken: payload.refreshToken,
             session,
           });
+
+          authenticatedExternalAccount = connectResult.externalAccount;
+          runBackfillJobs = connectResult.runBackfillJobs;
         } else {
           const otherExternalAccount =
             await this.externalAccountService.findOneByFilters(
@@ -525,7 +539,7 @@ export class AuthService {
           }
 
           if (user) {
-            await this.externalAccountService.connect({
+            const connectResult = await this.externalAccountService.connect({
               foreignId,
               accessToken: payload.accessToken,
               email,
@@ -535,11 +549,18 @@ export class AuthService {
               userId: user._id.toString(),
               session,
             });
+
+            authenticatedExternalAccount = connectResult.externalAccount;
+            runBackfillJobs = connectResult.runBackfillJobs;
           } else {
-            user = await this.createUser({
+            const createResult = await this.createUser({
               ...payload,
               session,
             });
+
+            authenticatedExternalAccount = createResult.externalAccount;
+            runBackfillJobs = createResult.runBackfillJobs;
+            user = createResult.user;
           }
         }
 
@@ -558,6 +579,8 @@ export class AuthService {
           accessExpiresAt: authSession.accessExpiresAt,
           refreshExpiresAt: authSession.refreshExpiresAt,
           user: userDTO,
+          externalAccount: authenticatedExternalAccount,
+          runBackfillJobs,
         };
       });
 

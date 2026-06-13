@@ -1,3 +1,5 @@
+import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
+
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
 
 export class AuthAuthUserDTO {
@@ -16,4 +18,6 @@ export class AuthAuthUserResponseDTO {
   accessExpiresAt: Date;
   refreshToken: string;
   refreshExpiresAt: Date;
+  externalAccount: ExternalAccount;
+  runBackfillJobs: boolean;
 }

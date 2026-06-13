@@ -1,113 +1,133 @@
 import { InjectQueue } from '@nestjs/bull';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Queue } from 'bull';
-import { ClientSession, Model } from 'mongoose';
+import { ClientSession, Model, QueryFilter, Types } from 'mongoose';
 
-import { EmailQueueStep } from '../enums/email-queue-step.enum';
-import { JobStatus } from '../enums/job-status.enum';
-import { QueueName } from '../enums/queue-name.enum';
-import { EmailQueue } from '../schema/email-queue.schema';
+import { BullQueueJobStatus } from '../enums/bull-queue-job-status.enum';
+import { BullQueueName } from '../enums/bull-queue-name.enum';
+import { BullQueueStep } from '../enums/bull-queue-step.enum';
+import { BullQueue } from '../schema/bull-queue.schema';
 
 @Injectable()
 export class QueueService {
   constructor(
-    @InjectModel(EmailQueue.name)
-    private readonly emailQueueModel: Model<EmailQueue>,
+    @InjectModel(BullQueue.name)
+    private readonly bullQueueModel: Model<BullQueue>,
 
-    @InjectQueue(QueueName.EMAIL_GOOGLE_BACKFILL)
+    @InjectQueue(BullQueueName.EMAIL_GOOGLE_BACKFILL)
     private readonly emailGoogleBackfillQueue: Queue,
+    @InjectQueue(BullQueueName.EMAIL_MICROSOFT_BACKFILL)
+    private readonly emailMicrosoftBackfillQueue: Queue,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  private async removeEmailQueueByStatus() {
-    await this.emailQueueModel.deleteMany({
-      $or: [
-        { status: JobStatus.COMPLETED },
-        { status: JobStatus.CANCELLED },
-        { createdAt: { $lt: new Date(Date.now() - 10 * 60 * 60 * 1000) } },
-      ],
-    });
-  }
-
-  async createEmailQueue({
+  getJobId({
     externalAccountId,
     step,
-    nextPage,
-    status,
-    jobId,
+    queueName,
   }: {
     externalAccountId: string;
-    step: EmailQueueStep;
-    nextPage?: string;
-    status: JobStatus;
-    jobId: string;
+    step: BullQueueStep;
+    queueName: BullQueueName;
   }) {
-    return await this.emailQueueModel.create({
+    return `${externalAccountId}-${step}-${queueName}`;
+  }
+
+  parseJobId(jobId: string) {
+    const [externalAccountId, step, queueName] = jobId.split('-');
+    return { externalAccountId, step, queueName };
+  }
+
+  async appointJob({
+    externalAccountId,
+    step,
+    queueName,
+  }: {
+    externalAccountId: string;
+    step: BullQueueStep;
+    queueName: BullQueueName;
+  }) {
+    return await this.bullQueueModel.create({
       externalAccountId,
       step,
-      nextPage,
-      status,
-      jobId,
+      queueName,
+      status: BullQueueJobStatus.PENDING,
+      jobId: this.getJobId({ externalAccountId, step, queueName }),
     });
   }
 
-  async updateEmailQueue({
+  async startOrRestartJob({
     externalAccountId,
     step,
-    nextPage,
-    status,
-    jobId,
   }: {
     externalAccountId: string;
-    step: EmailQueueStep;
-    nextPage?: string;
-    status: JobStatus;
-    jobId: string;
+    step: BullQueueStep;
   }) {
-    return await this.emailQueueModel.findOneAndUpdate(
-      { externalAccountId, step, jobId },
-      { nextPage, status },
+    const now = new Date();
+    return await this.bullQueueModel.findOneAndUpdate(
+      {
+        externalAccountId,
+        step,
+        $or: [
+          { status: BullQueueJobStatus.PENDING },
+          {
+            status: BullQueueJobStatus.STARTED,
+            leaseUntil: { $lt: Date.now() },
+          },
+        ],
+      },
+      {
+        leaseUntil: new Date(+now + 10 * 60 * 1000),
+        lastAttemptAt: now,
+        status: BullQueueJobStatus.STARTED,
+      },
       { returnDocument: 'after' },
     );
   }
 
-  async findOneEmailQueue({
-    externalAccountId,
-    step,
-    status,
-  }: {
-    externalAccountId: string;
-    step: EmailQueueStep;
-    status: JobStatus;
-  }) {
-    return await this.emailQueueModel.findOne({
-      externalAccountId,
-      step,
-      status,
-    });
+  async completeJob({ _id }: { _id: string }) {
+    return await this.bullQueueModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(_id) },
+      {
+        status: BullQueueJobStatus.COMPLETED,
+        $unset: { leaseUntil: 1, lastAttemptAt: 1 },
+      },
+      { returnDocument: 'after' },
+    );
   }
 
-  async deleteEmailQueueByExternalAccountId(
+  async updateJob({ _id, nextPage }: { _id: string; nextPage?: string }) {
+    const now = new Date();
+    return await this.bullQueueModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(_id) },
+      {
+        leaseUntil: new Date(+now + 10 * 60 * 1000),
+        lastAttemptAt: now,
+        nextPage,
+      },
+      { returnDocument: 'after' },
+    );
+  }
+
+  async findOneByFilters(filters: QueryFilter<BullQueue>) {
+    return await this.bullQueueModel.findOne(filters);
+  }
+
+  findByFiltersCursor(filters: QueryFilter<BullQueue>) {
+    return this.bullQueueModel.find(filters).lean().cursor();
+  }
+
+  async deleteJobByExternalAccountId(
     externalAccountId: string,
     session?: ClientSession,
   ) {
-    const emailQueues = await this.emailQueueModel.find(
-      {
-        externalAccountId,
-      },
+    await this.bullQueueModel.updateMany(
+      { externalAccountId },
+      { status: BullQueueJobStatus.CANCELLED },
       { session },
     );
 
-    await Promise.all(
-      emailQueues.map(async (emailQueue) => {
-        await this.emailGoogleBackfillQueue.removeJobs(emailQueue.jobId);
-        await this.emailQueueModel.deleteOne(
-          { _id: emailQueue._id },
-          { session },
-        );
-      }),
-    );
+    await this.emailGoogleBackfillQueue.removeJobs(`${externalAccountId}-*`);
+    await this.emailMicrosoftBackfillQueue.removeJobs(`${externalAccountId}-*`);
   }
 }

@@ -14,6 +14,14 @@ export class EmailService {
     await this.emailModel.insertMany(emails, options ?? {});
   }
 
+  async insertOne(email: Partial<Email>) {
+    return this.emailModel.findOneAndUpdate(
+      { emailId: email.emailId, externalAccountId: email.externalAccountId },
+      { ...email },
+      { upsert: true, new: true },
+    );
+  }
+
   async deleteMany({
     userId,
     externalAccountId,
