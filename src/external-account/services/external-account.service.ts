@@ -38,7 +38,16 @@ export class ExternalAccountService {
   async list(payload: ExternalAccountListDTO) {
     const { userId } = payload;
     const externalAccounts = await this.externalAccountModel
-      .find({ userId })
+      .find({
+        userId,
+        status: {
+          $in: [
+            ExternalAccountStatus.CONNECTED,
+            ExternalAccountStatus.BANNED,
+            ExternalAccountStatus.DISCONNECTED,
+          ],
+        },
+      })
       .sort({ type: 1, createdAt: -1 });
 
     return plainToInstance(ExternalAccountDTO, externalAccounts, {
