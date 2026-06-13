@@ -1,4 +1,4 @@
 export enum BullQueueName {
-  EMAIL_GOOGLE_BACKFILL = 'email-google-backfill',
-  EMAIL_MICROSOFT_BACKFILL = 'email-microsoft-backfill',
+  EMAIL_GOOGLE_BACKFILL = 'EMAIL_GOOGLE_BACKFILL',
+  EMAIL_MICROSOFT_BACKFILL = 'EMAIL_MICROSOFT_BACKFILL',
 }

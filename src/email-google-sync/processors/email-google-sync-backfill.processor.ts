@@ -18,7 +18,7 @@ export class EmailGoogleSyncBackfillProcessor {
     private readonly externalAccountService: ExternalAccountService,
     private readonly googleClientService: GoogleClientService,
   ) {}
-  @Process()
+  @Process(BullQueueName.EMAIL_GOOGLE_BACKFILL)
   async handle(
     job: Job<{
       externalAccountId: string;
@@ -32,6 +32,7 @@ export class EmailGoogleSyncBackfillProcessor {
     const emailQueue = await this.queueService.startOrRestartJob({
       externalAccountId,
       step,
+      queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
     });
 
     if (!emailQueue) {

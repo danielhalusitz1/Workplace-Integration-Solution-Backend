@@ -24,6 +24,7 @@ import { ExternalAccountListDTO } from '../dto/external-account-list.dto';
 import { ExternalAccountSetPrimaryDTO } from '../dto/external-account-set-primary.dto';
 import { ValidateConnectionDTO } from '../dto/external-account-validate-connection.dto';
 import { ExternalAccountStatus } from '../enums/external-account.status';
+import { ExternalAccountType } from '../enums/external-account-type.enum';
 import { ExternalAccount } from '../schemas/external-account.schema';
 
 @Injectable()
@@ -180,23 +181,29 @@ export class ExternalAccountService {
         )
       )[0];
 
-      await this.queueService.appointJob({
-        externalAccountId: newExternalAccount._id.toString(),
-        step: BullQueueStep.DAYS_3,
-        queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
-      });
+      switch (type) {
+        case ExternalAccountType.GOOGLE:
+          await this.queueService.appointJob({
+            externalAccountId: newExternalAccount._id.toString(),
+            step: BullQueueStep.DAYS_3,
+            queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+          });
 
-      await this.queueService.appointJob({
-        externalAccountId: newExternalAccount._id.toString(),
-        step: BullQueueStep.DAYS_30,
-        queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
-      });
+          await this.queueService.appointJob({
+            externalAccountId: newExternalAccount._id.toString(),
+            step: BullQueueStep.DAYS_30,
+            queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+          });
 
-      await this.queueService.appointJob({
-        externalAccountId: newExternalAccount._id.toString(),
-        step: BullQueueStep.DAYS_90,
-        queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
-      });
+          await this.queueService.appointJob({
+            externalAccountId: newExternalAccount._id.toString(),
+            step: BullQueueStep.DAYS_90,
+            queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+          });
+          break;
+        case ExternalAccountType.MICROSOFT:
+          break;
+      }
       return { externalAccount: newExternalAccount, runBackfillJobs: true };
     }
   }
@@ -223,10 +230,18 @@ export class ExternalAccountService {
   async disconnect(payload: ExternalAccountDisconnectDTO) {
     const { _id } = payload;
 
-    await this.externalAccountModel.updateOne(
-      { _id },
-      { status: ExternalAccountStatus.DISCONNECTED },
-    );
+    await this.mongodbTransactionService.withTransaction(async (session) => {
+      await this.queueService.deleteJobByExternalAccountId(
+        payload._id.toString(),
+        session,
+      );
+
+      await this.externalAccountModel.updateOne(
+        { _id },
+        { status: ExternalAccountStatus.DISCONNECTED },
+        { session },
+      );
+    });
   }
 
   async setPrimary(payload: ExternalAccountSetPrimaryDTO, user: UserDTO) {

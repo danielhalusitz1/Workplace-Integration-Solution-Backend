@@ -18,9 +18,10 @@ export class EmailGoogleSyncService {
     private readonly queueService: QueueService,
   ) {}
 
-  @Cron('*/5 * * * * *')
+  @Cron('*/5 * * * * ')
   private async repairJobs() {
     const cursor = this.queueService.findByFiltersCursor({
+      queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
       $or: [
         { status: BullQueueJobStatus.PENDING },
         {

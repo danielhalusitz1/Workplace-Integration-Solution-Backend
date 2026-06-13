@@ -386,18 +386,27 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.CONNECTION_FAILED);
       }
 
-      await this.mongodbTransactionService.withTransaction(async (session) => {
-        return await this.externalAccountService.connect({
-          foreignId: googleUser.id,
-          accessToken,
-          email: googleUser.email,
-          expiryDate,
-          refreshToken,
-          type: ExternalAccountType.GOOGLE,
-          userId: user._id.toString(),
-          session,
-        });
-      });
+      const connectionResult =
+        await this.mongodbTransactionService.withTransaction(
+          async (session) => {
+            return await this.externalAccountService.connect({
+              foreignId: googleUser.id,
+              accessToken,
+              email: googleUser.email,
+              expiryDate,
+              refreshToken,
+              type: ExternalAccountType.GOOGLE,
+              userId: user._id.toString(),
+              session,
+            });
+          },
+        );
+
+      if (connectionResult.runBackfillJobs) {
+        await this.emailGoogleSyncService.startGoogleEmailBackfill(
+          connectionResult.externalAccount._id.toString(),
+        );
+      }
 
       res.redirect(
         `${webBase}${webRedirectUri}?account_connection_result=success`,

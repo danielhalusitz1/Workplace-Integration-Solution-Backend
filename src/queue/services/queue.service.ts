@@ -59,14 +59,17 @@ export class QueueService {
   async startOrRestartJob({
     externalAccountId,
     step,
+    queueName,
   }: {
     externalAccountId: string;
     step: BullQueueStep;
+    queueName: BullQueueName;
   }) {
     const now = new Date();
     return await this.bullQueueModel.findOneAndUpdate(
       {
         externalAccountId,
+        queueName,
         step,
         $or: [
           { status: BullQueueJobStatus.PENDING },
