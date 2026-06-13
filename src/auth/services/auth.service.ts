@@ -120,30 +120,43 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
 
-      const authResult = await this.authUser({
-        foreignId: googleUser.id,
-        email: googleUser.email,
-        firstName: googleUser.firstName,
-        lastName: googleUser.lastName,
-        accessToken,
-        refreshToken: googleUser.refreshToken,
-        expiryDate,
-        externalAccountType: ExternalAccountType.GOOGLE,
-      });
+      const authTransactionResult =
+        await this.mongodbTransactionService.withTransaction(
+          async (session) => {
+            const authResult = await this.authUser({
+              foreignId: googleUser.id,
+              email: googleUser.email,
+              firstName: googleUser.firstName,
+              lastName: googleUser.lastName,
+              accessToken,
+              refreshToken: googleUser.refreshToken,
+              expiryDate,
+              externalAccountType: ExternalAccountType.GOOGLE,
+              session,
+            });
+
+            await this.emailGoogleSyncService.startWatch({
+              externalAccountId: authResult.externalAccount._id.toString(),
+              session,
+            });
+
+            return authResult;
+          },
+        );
 
       this.setCookie({
-        accessToken: authResult.accessToken,
-        accessExpiresAt: authResult.accessExpiresAt,
-        refreshToken: authResult.refreshToken,
-        refreshExpiresAt: authResult.refreshExpiresAt,
+        accessToken: authTransactionResult.accessToken,
+        accessExpiresAt: authTransactionResult.accessExpiresAt,
+        refreshToken: authTransactionResult.refreshToken,
+        refreshExpiresAt: authTransactionResult.refreshExpiresAt,
         res,
       });
 
       res.redirect(webBase);
 
-      if (authResult.runBackfillJobs) {
+      if (authTransactionResult.runBackfillJobs) {
         await this.emailGoogleSyncService.startGoogleEmailBackfill(
-          authResult.externalAccount._id.toString(),
+          authTransactionResult.externalAccount._id.toString(),
         );
       }
     } catch (error) {
@@ -303,22 +316,30 @@ export class AuthService {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
 
-      const tokens = await this.authUser({
-        foreignId: microsoftUser.id,
-        email: microsoftUser.email,
-        firstName: microsoftUser.firstName,
-        lastName: microsoftUser.lastName,
-        accessToken,
-        refreshToken: microsoftUser.refreshToken,
-        expiryDate,
-        externalAccountType: ExternalAccountType.MICROSOFT,
-      });
+      const authTransactionResult =
+        await this.mongodbTransactionService.withTransaction(
+          async (session) => {
+            const authResult = await this.authUser({
+              foreignId: microsoftUser.id,
+              email: microsoftUser.email,
+              firstName: microsoftUser.firstName,
+              lastName: microsoftUser.lastName,
+              accessToken,
+              refreshToken: microsoftUser.refreshToken,
+              expiryDate,
+              externalAccountType: ExternalAccountType.MICROSOFT,
+              session,
+            });
+
+            return authResult;
+          },
+        );
 
       this.setCookie({
-        accessToken: tokens.accessToken,
-        accessExpiresAt: tokens.accessExpiresAt,
-        refreshToken: tokens.refreshToken,
-        refreshExpiresAt: tokens.refreshExpiresAt,
+        accessToken: authTransactionResult.accessToken,
+        accessExpiresAt: authTransactionResult.accessExpiresAt,
+        refreshToken: authTransactionResult.refreshToken,
+        refreshExpiresAt: authTransactionResult.refreshExpiresAt,
         res,
       });
       res.redirect(webBase);
@@ -399,7 +420,7 @@ export class AuthService {
       const connectionResult =
         await this.mongodbTransactionService.withTransaction(
           async (session) => {
-            return await this.externalAccountService.connect({
+            const connectionResult = await this.externalAccountService.connect({
               foreignId: googleUser.id,
               accessToken,
               email: googleUser.email,
@@ -409,6 +430,14 @@ export class AuthService {
               userId: user._id.toString(),
               session,
             });
+
+            await this.emailGoogleSyncService.startWatch({
+              externalAccountId:
+                connectionResult.externalAccount._id.toString(),
+              session,
+            });
+
+            return connectionResult;
           },
         );
 
@@ -497,113 +526,106 @@ export class AuthService {
   private async authUser(
     payload: AuthAuthUserDTO,
   ): Promise<AuthAuthUserResponseDTO> {
-    const { foreignId, email, externalAccountType } = payload;
+    const { foreignId, email, externalAccountType, session } = payload;
 
     let authenticatedExternalAccount: ExternalAccount | undefined;
     let runBackfillJobs = false;
 
-    const transactionResult =
-      await this.mongodbTransactionService.withTransaction(async (session) => {
-        const externalAccount =
-          await this.externalAccountService.findOneByFilters(
-            {
-              foreignId,
-            },
-            { session },
-          );
+    const externalAccount = await this.externalAccountService.findOneByFilters(
+      {
+        foreignId,
+      },
+      { session },
+    );
 
-        let user: null | UserDocument = null;
+    let user: null | UserDocument = null;
 
-        if (externalAccount) {
-          user = await this.userService.findOneByFilters(
-            {
-              _id: new Types.ObjectId(externalAccount.userId),
-            },
-            { session },
-          );
-        }
+    if (externalAccount) {
+      user = await this.userService.findOneByFilters(
+        {
+          _id: new Types.ObjectId(externalAccount.userId),
+        },
+        { session },
+      );
+    }
 
-        if (user) {
-          const connectResult = await this.externalAccountService.connect({
-            userId: user._id.toString(),
-            foreignId,
-            type: externalAccountType,
-            accessToken: payload.accessToken,
-            email: email,
-            expiryDate: payload.expiryDate,
-            refreshToken: payload.refreshToken,
-            session,
-          });
+    if (user) {
+      const connectResult = await this.externalAccountService.connect({
+        userId: user._id.toString(),
+        foreignId,
+        type: externalAccountType,
+        accessToken: payload.accessToken,
+        email: email,
+        expiryDate: payload.expiryDate,
+        refreshToken: payload.refreshToken,
+        session,
+      });
 
-          authenticatedExternalAccount = connectResult.externalAccount;
-          runBackfillJobs = connectResult.runBackfillJobs;
-        } else {
-          const otherExternalAccount =
-            await this.externalAccountService.findOneByFilters(
-              {
-                email,
-                type: { $ne: externalAccountType },
-                status: { $in: [ExternalAccountStatus.CONNECTED] },
-              },
-              { session },
-            );
+      authenticatedExternalAccount = connectResult.externalAccount;
+      runBackfillJobs = connectResult.runBackfillJobs;
+    } else {
+      const otherExternalAccount =
+        await this.externalAccountService.findOneByFilters(
+          {
+            email,
+            type: { $ne: externalAccountType },
+            status: { $in: [ExternalAccountStatus.CONNECTED] },
+          },
+          { session },
+        );
 
-          if (otherExternalAccount) {
-            user = await this.userService.findOneByFilters(
-              {
-                _id: new Types.ObjectId(otherExternalAccount.userId),
-              },
-              { session },
-            );
-          }
+      if (otherExternalAccount) {
+        user = await this.userService.findOneByFilters(
+          {
+            _id: new Types.ObjectId(otherExternalAccount.userId),
+          },
+          { session },
+        );
+      }
 
-          if (user) {
-            const connectResult = await this.externalAccountService.connect({
-              foreignId,
-              accessToken: payload.accessToken,
-              email,
-              expiryDate: payload.expiryDate,
-              refreshToken: payload.refreshToken,
-              type: externalAccountType,
-              userId: user._id.toString(),
-              session,
-            });
-
-            authenticatedExternalAccount = connectResult.externalAccount;
-            runBackfillJobs = connectResult.runBackfillJobs;
-          } else {
-            const createResult = await this.createUser({
-              ...payload,
-              session,
-            });
-
-            authenticatedExternalAccount = createResult.externalAccount;
-            runBackfillJobs = createResult.runBackfillJobs;
-            user = createResult.user;
-          }
-        }
-
-        const userDTO = plainToInstance(UserDTO, user, {
-          excludeExtraneousValues: true,
-        });
-
-        const authSession = await this.sessionService.create({
-          user: userDTO,
+      if (user) {
+        const connectResult = await this.externalAccountService.connect({
+          foreignId,
+          accessToken: payload.accessToken,
+          email,
+          expiryDate: payload.expiryDate,
+          refreshToken: payload.refreshToken,
+          type: externalAccountType,
+          userId: user._id.toString(),
           session,
         });
 
-        return {
-          accessToken: authSession.accessToken,
-          refreshToken: authSession.refreshToken,
-          accessExpiresAt: authSession.accessExpiresAt,
-          refreshExpiresAt: authSession.refreshExpiresAt,
-          user: userDTO,
-          externalAccount: authenticatedExternalAccount,
-          runBackfillJobs,
-        };
-      });
+        authenticatedExternalAccount = connectResult.externalAccount;
+        runBackfillJobs = connectResult.runBackfillJobs;
+      } else {
+        const createResult = await this.createUser({
+          ...payload,
+          session,
+        });
 
-    return transactionResult;
+        authenticatedExternalAccount = createResult.externalAccount;
+        runBackfillJobs = createResult.runBackfillJobs;
+        user = createResult.user;
+      }
+    }
+
+    const userDTO = plainToInstance(UserDTO, user, {
+      excludeExtraneousValues: true,
+    });
+
+    const authSession = await this.sessionService.create({
+      user: userDTO,
+      session,
+    });
+
+    return {
+      accessToken: authSession.accessToken,
+      refreshToken: authSession.refreshToken,
+      accessExpiresAt: authSession.accessExpiresAt,
+      refreshExpiresAt: authSession.refreshExpiresAt,
+      externalAccount: authenticatedExternalAccount,
+      runBackfillJobs,
+    };
   }
 
   async refresh(req: Request, res: Response) {

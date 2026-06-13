@@ -1,8 +1,19 @@
 import { InjectQueue } from '@nestjs/bull';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import type { Queue } from 'bull';
 import moment from 'moment';
+import { ClientSession, Types } from 'mongoose';
+import { ErrorTypes } from 'src/enums/error-types.enum';
+import { ExternalAccountStatus } from 'src/external-account/enums/external-account.status';
+import { ExternalAccountService } from 'src/external-account/services/external-account.service';
+import { GoogleClientService } from 'src/google-client/services/google-client.service';
 import { BullQueueJobStatus } from 'src/queue/enums/bull-queue-job-status.enum';
 import { BullQueueName } from 'src/queue/enums/bull-queue-name.enum';
 import { BullQueueStep } from 'src/queue/enums/bull-queue-step.enum';
@@ -16,6 +27,9 @@ export class EmailGoogleSyncService {
     private readonly emailGoogleBackfillQueue: Queue,
 
     private readonly queueService: QueueService,
+    private readonly externalAccountService: ExternalAccountService,
+    private readonly googleClientService: GoogleClientService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Cron('*/5 * * * * ')
@@ -77,6 +91,63 @@ export class EmailGoogleSyncService {
         this.logger.error(`Error repairing job ${job.jobId}: ${error.message}`);
       }
     }
+  }
+
+  async handleWebhook(payload: any) {
+    console.log(payload);
+  }
+
+  async startWatch({
+    externalAccountId,
+    session,
+  }: {
+    externalAccountId: string;
+    session?: ClientSession;
+  }) {
+    const externalAccount = await this.externalAccountService.findOneByFilters(
+      {
+        _id: new Types.ObjectId(externalAccountId),
+        status: ExternalAccountStatus.CONNECTED,
+      },
+      { session },
+    );
+
+    if (!externalAccount) {
+      throw new NotFoundException(
+        ErrorTypes.EMAIL_GOOGLE_SYNC_SERVICE_START_WATCHING_JOBS_EXTERNAL_ACCOUNT_NOT_FOUND,
+      );
+    }
+
+    await this.googleClientService.run(
+      externalAccount,
+      async ({ gmailApi }) => {
+        const projectId =
+          this.configService.getOrThrow<string>('GOOGLE_PROJECT_ID');
+        const watchTopic = this.configService.getOrThrow<string>(
+          'GOOGLE_GMAIL_WATCH_TOPIC',
+        );
+
+        const watchResponse = await gmailApi.users.watch({
+          userId: 'me',
+          requestBody: {
+            topicName: `projects/${projectId}/topics/${watchTopic}`,
+          },
+        });
+
+        if (!watchResponse.data.expiration || !watchResponse.data.historyId) {
+          throw new BadRequestException(
+            ErrorTypes.EMAIL_GOOGLE_SYNC_SERVICE_START_WATCHING_JOBS_WATCH_RESPONSE_MISSING_DATA,
+          );
+        }
+
+        await this.externalAccountService.updateWatch({
+          externalAccountId,
+          watchExpirationDate: new Date(Number(watchResponse.data.expiration)),
+          watchId: watchResponse.data.historyId,
+          session,
+        });
+      },
+    );
   }
 
   async startGoogleEmailBackfill(externalAccountId: string) {

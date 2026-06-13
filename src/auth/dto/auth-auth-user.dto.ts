@@ -1,3 +1,4 @@
+import { ClientSession } from 'mongoose';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 
 import { ExternalAccountType } from '../../external-account/enums/external-account-type.enum';
@@ -11,6 +12,7 @@ export class AuthAuthUserDTO {
   accessToken: string;
   expiryDate: number;
   externalAccountType: ExternalAccountType;
+  session: ClientSession;
 }
 
 export class AuthAuthUserResponseDTO {

@@ -4,6 +4,7 @@ import { ExternalAccountModule } from 'src/external-account/external-account.mod
 import { GoogleClientModule } from 'src/google-client/google-client.module';
 import { QueueModule } from 'src/queue/queue.module';
 
+import { EmailGoogleWebhookController } from './controllers/email-google-webhook.controller';
 import { EmailGoogleSyncBackfillProcessor } from './processors/email-google-sync-backfill.processor';
 import { EmailGoogleSyncService } from './services/email-google-sync.service';
 
@@ -14,6 +15,7 @@ import { EmailGoogleSyncService } from './services/email-google-sync.service';
     ExternalAccountModule,
     EmailModule,
   ],
+  controllers: [EmailGoogleWebhookController],
   providers: [EmailGoogleSyncService, EmailGoogleSyncBackfillProcessor],
   exports: [EmailGoogleSyncService],
 })
