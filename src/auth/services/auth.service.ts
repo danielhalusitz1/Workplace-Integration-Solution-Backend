@@ -6,6 +6,7 @@ import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { EmailGoogleSyncService } from 'src/email-google-sync/services/email-google-sync.service';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { ExternalAccountStatus } from 'src/external-account/enums/external-account.status';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { SessionService } from 'src/session/services/session.service';
@@ -99,21 +100,9 @@ export class AuthService {
         | string
         | undefined;
 
-      const skipOauthStateCheck = this.configService.getOrThrow<string>(
-        'SKIP_OAUTH_STATE_CHECK',
-      );
-      if (
-        skipOauthStateCheck !== 'true' &&
-        (!state || !googleStateFromCookie || state !== googleStateFromCookie)
-      ) {
+      if (!state || !googleStateFromCookie || state !== googleStateFromCookie) {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
-
-      res.clearCookie('google_auth_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
 
       const googleUser = await this.authGoogleService.login({ code });
 
@@ -146,11 +135,7 @@ export class AuthService {
       res.redirect(webBase);
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('google_auth_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
+
       const supportedErrorMessages = [
         ErrorTypes.LOGIN_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -161,6 +146,12 @@ export class AuthService {
       } else {
         res.redirect(`${webBase}?auth_result=${ErrorTypes.LOGIN_FAILED}`);
       }
+    } finally {
+      res.clearCookie('google_auth_state', {
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
     }
   }
 
@@ -278,23 +269,13 @@ export class AuthService {
         | string
         | undefined;
 
-      const skipOauthStateCheck = this.configService.getOrThrow<string>(
-        'SKIP_OAUTH_STATE_CHECK',
-      );
       if (
-        skipOauthStateCheck !== 'true' &&
-        (!state ||
-          !microsoftStateFromCookie ||
-          state !== microsoftStateFromCookie)
+        !state ||
+        !microsoftStateFromCookie ||
+        state !== microsoftStateFromCookie
       ) {
         throw new BadRequestException(ErrorTypes.LOGIN_FAILED);
       }
-
-      res.clearCookie('microsoft_auth_state', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-      });
 
       const microsoftUser = await this.authMicrosoftService.login({ code });
 
@@ -326,11 +307,7 @@ export class AuthService {
       res.redirect(webBase);
     } catch (error) {
       this.logger.error(error);
-      res.clearCookie('microsoft_auth_state', {
-        sameSite: 'lax',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-      });
+
       const supportedErrorMessages = [
         ErrorTypes.LOGIN_FAILED.toString(),
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_VALIDATE_CONNECTION_LIMIT_LIMIT_REACHED.toString(),
@@ -341,6 +318,12 @@ export class AuthService {
       } else {
         res.redirect(`${webBase}?auth_result=${ErrorTypes.LOGIN_FAILED}`);
       }
+    } finally {
+      res.clearCookie('microsoft_auth_state', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
     }
   }
 
@@ -397,7 +380,7 @@ export class AuthService {
       }
 
       await this.mongodbTransactionService.withTransaction(async (session) => {
-        await this.externalAccountService.connect({
+        return await this.externalAccountService.connect({
           foreignId: googleUser.id,
           accessToken,
           email: googleUser.email,
@@ -437,7 +420,7 @@ export class AuthService {
     }
   }
 
-  private async createUser(payload: AuthCreateUserDTO): Promise<UserDocument> {
+  private async createUser(payload: AuthCreateUserDTO) {
     const {
       session,
       externalAccountType,
@@ -527,7 +510,7 @@ export class AuthService {
               {
                 email,
                 type: { $ne: externalAccountType },
-                connected: true,
+                status: { $in: [ExternalAccountStatus.CONNECTED] },
               },
               { session },
             );
@@ -553,10 +536,10 @@ export class AuthService {
               session,
             });
           } else {
-            user = await this.createUser({ ...payload, session });
-            await this.emailGoogleSyncService.startGoogleEmailInitialSync(
-              user._id.toString(),
-            );
+            user = await this.createUser({
+              ...payload,
+              session,
+            });
           }
         }
 

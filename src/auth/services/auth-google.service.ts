@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Credentials } from 'google-auth-library';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { ExternalAccountStatus } from 'src/external-account/enums/external-account.status';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { GoogleClientService } from 'src/google-client/services/google-client.service';
@@ -40,7 +41,7 @@ export class AuthGoogleService {
     this.logger.log('Start update access tokens');
     const cursor = this.externalAccountService.findByFiltersCursor({
       type: ExternalAccountType.GOOGLE,
-      connected: true,
+      status: { $in: [ExternalAccountStatus.CONNECTED] },
       expiryDate: {
         $lte: Date.now() + 10 * 60 * 1000,
       },

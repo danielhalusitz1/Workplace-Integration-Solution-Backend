@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
 import { ErrorTypes } from 'src/enums/error-types.enum';
+import { ExternalAccountStatus } from 'src/external-account/enums/external-account.status';
 import { ExternalAccount } from 'src/external-account/schemas/external-account.schema';
 import { ExternalAccountService } from 'src/external-account/services/external-account.service';
 import { MicrosoftClientService } from 'src/microsoft-client/services/microsoft-client.service';
@@ -46,7 +47,7 @@ export class AuthMicrosoftService {
   private async updateAccessTokens() {
     this.logger.log('Start update access tokens');
     const cursor = this.externalAccountService.findByFiltersCursor({
-      connected: true,
+      status: { $in: [ExternalAccountStatus.CONNECTED] },
       type: ExternalAccountType.MICROSOFT,
       expiryDate: {
         $lte: Date.now() + 10 * 60 * 1000,

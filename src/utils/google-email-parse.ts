@@ -25,6 +25,7 @@ function parseInternalDate(internalDate?: string | null): Date | undefined {
 export function parseGmailEmail(
   email: gmail_v1.Schema$Message,
   userId: string,
+  externalAccountId: string,
 ): Partial<Email> {
   const headers = email.payload?.headers || [];
 
@@ -66,8 +67,9 @@ export function parseGmailEmail(
 
   return {
     userId,
+    externalAccountId,
     from,
-    to: to.split(',').map((t) => t.trim()),
+    to,
     subject,
     body: textBody,
     historyId: email.historyId ?? undefined,

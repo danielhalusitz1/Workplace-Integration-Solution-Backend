@@ -6,7 +6,6 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
 import { Model, QueryFilter, QueryOptions } from 'mongoose';
-import { EmailService } from 'src/email/services/email.service';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { QueueService } from 'src/queue/services/queue.service';
@@ -22,6 +21,7 @@ import { ExternalAccountDisconnectDTO } from '../dto/external-account-disconnect
 import { ExternalAccountListDTO } from '../dto/external-account-list.dto';
 import { ExternalAccountSetPrimaryDTO } from '../dto/external-account-set-primary.dto';
 import { ValidateConnectionDTO } from '../dto/external-account-validate-connection.dto';
+import { ExternalAccountStatus } from '../enums/external-account.status';
 import { ExternalAccount } from '../schemas/external-account.schema';
 
 @Injectable()
@@ -33,7 +33,6 @@ export class ExternalAccountService {
     private readonly userSubscriptionService: UserSubscriptionService,
     private readonly queueService: QueueService,
     private readonly mongodbTransactionService: MongodbTransactionService,
-    private readonly emailService: EmailService,
   ) {}
 
   async list(payload: ExternalAccountListDTO) {
@@ -65,23 +64,18 @@ export class ExternalAccountService {
           session,
         );
 
-        await this.emailService.deleteMany({
-          userId: user._id.toString(),
-          externalAccountId: payload._id.toString(),
-          session,
-        });
-
-        return await this.externalAccountModel.deleteOne(
+        return await this.externalAccountModel.updateOne(
           {
             _id: payload._id,
             userId: user._id.toString(),
           },
+          { status: ExternalAccountStatus.DELETED },
           { session },
         );
       },
     );
 
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
       throw new BadRequestException(
         ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_DELETE_NOT_SUCCESS,
       );
@@ -114,7 +108,7 @@ export class ExternalAccountService {
         );
       }
 
-      if (existingForeignAccount.banned) {
+      if (existingForeignAccount.status === ExternalAccountStatus.BANNED) {
         throw new BadRequestException(
           ErrorTypes.EXTERNAL_ACCOUNT_SERVICE_CONNECT_ACCOUNT_BANNED,
         );
@@ -131,7 +125,7 @@ export class ExternalAccountService {
             accessTokenEncrypted: encrypt(accessToken),
             expiryDate,
             email,
-            connected: true,
+            status: ExternalAccountStatus.CONNECTED,
           },
           { session },
         );
@@ -164,7 +158,6 @@ export class ExternalAccountService {
               accessTokenEncrypted: encrypt(accessToken),
               expiryDate,
               email,
-              connected: true,
             },
           ],
           { session },
@@ -195,7 +188,10 @@ export class ExternalAccountService {
   async disconnect(payload: ExternalAccountDisconnectDTO) {
     const { _id } = payload;
 
-    await this.externalAccountModel.updateOne({ _id }, { connected: false });
+    await this.externalAccountModel.updateOne(
+      { _id },
+      { status: ExternalAccountStatus.DISCONNECTED },
+    );
   }
 
   async setPrimary(payload: ExternalAccountSetPrimaryDTO, user: UserDTO) {
@@ -204,8 +200,9 @@ export class ExternalAccountService {
     const externalAccount = await this.externalAccountModel.findOne({
       _id,
       userId: user._id.toString(),
-      connected: true,
-      banned: false,
+      status: {
+        $in: [ExternalAccountStatus.CONNECTED],
+      },
     });
 
     if (!externalAccount) {

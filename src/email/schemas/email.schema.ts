@@ -25,10 +25,13 @@ export class Email {
   userId: string;
 
   @Prop({ required: true })
+  externalAccountId: string;
+
+  @Prop({ required: true })
   from: string;
 
   @Prop({ required: true })
-  to: string[];
+  to: string;
 
   @Prop({ required: true })
   subject: string;
@@ -39,7 +42,7 @@ export class Email {
   @Prop()
   historyId?: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   emailId: string;
 
   @Prop({ required: true })
@@ -61,3 +64,5 @@ export class Email {
 
 export const EmailSchema = SchemaFactory.createForClass(Email);
 export type EmailDocument = HydratedDocument<Email>;
+
+EmailSchema.index({ emailId: 1, externalAccountId: 1 }, { unique: true });

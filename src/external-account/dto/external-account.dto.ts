@@ -2,6 +2,7 @@ import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Expose, Transform } from 'class-transformer';
 import { Types } from 'mongoose';
 
+import { ExternalAccountStatus } from '../enums/external-account.status';
 import { ExternalAccountType } from '../enums/external-account-type.enum';
 import { ExternalAccount } from '../schemas/external-account.schema';
 
@@ -18,16 +19,10 @@ export class ExternalAccountDTO extends OmitType(ExternalAccount, [
   _id: Types.ObjectId;
 
   @ApiProperty({
-    type: 'boolean',
+    enum: ExternalAccountStatus,
   })
   @Expose()
-  banned: boolean;
-
-  @ApiProperty({
-    type: 'boolean',
-  })
-  @Expose()
-  connected: boolean;
+  status: ExternalAccountStatus;
 
   @ApiProperty({
     type: 'string',

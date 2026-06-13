@@ -21,7 +21,7 @@ export class EmailQueue {
   @Prop()
   nextPage?: string;
 
-  @Prop({ required: true })
+  @Prop({ default: JobStatus.PENDING })
   status: JobStatus;
 
   createdAt: Date;

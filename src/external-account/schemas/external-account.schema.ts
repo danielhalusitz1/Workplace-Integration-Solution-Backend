@@ -4,6 +4,7 @@ import { HydratedDocument, Types } from 'mongoose';
 import { ExternalAccountType } from 'src/external-account/enums/external-account-type.enum';
 
 import { defaultSchemaOptions } from '../../defaults/default-schema-options';
+import { ExternalAccountStatus } from '../enums/external-account.status';
 
 @Schema({ ...defaultSchemaOptions, collection: 'external-account' })
 export class ExternalAccount {
@@ -55,16 +56,14 @@ export class ExternalAccount {
   expiryDate: number;
 
   @ApiProperty({
-    type: 'boolean',
+    enum: ExternalAccountStatus,
   })
-  @Prop({ default: true })
-  connected: boolean;
-
-  @ApiProperty({
-    type: 'boolean',
+  @Prop({
+    default: ExternalAccountStatus.CONNECTED,
+    enum: ExternalAccountStatus,
+    type: String,
   })
-  @Prop({ default: false })
-  banned: boolean;
+  status: ExternalAccountStatus;
 
   @ApiProperty({
     type: 'string',

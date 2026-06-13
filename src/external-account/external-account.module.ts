@@ -18,7 +18,6 @@ import { ExternalAccountService } from './services/external-account.service';
     MongooseModule.forFeature([
       { name: ExternalAccount.name, schema: ExternalAccountSchema },
     ]),
-    EmailModule,
     UserSettingsModule,
     UserSubscriptionModule,
     QueueModule,
