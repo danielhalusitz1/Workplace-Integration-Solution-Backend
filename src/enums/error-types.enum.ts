@@ -4,6 +4,9 @@ export enum ErrorTypes {
   RELOG_REQUIRED = 'error.relog-required',
   LOGIN_FAILED = 'error.login-failed',
 
+  EMAIL_GOOGLE_SYNC_SERVICE_START_WATCHING_JOBS_EXTERNAL_ACCOUNT_NOT_FOUND = 'error.email-google-sync-service.start-watching-jobs.external-account-not-found',
+  EMAIL_GOOGLE_SYNC_SERVICE_START_WATCHING_JOBS_WATCH_RESPONSE_MISSING_DATA = 'error.email-google-sync-service.start-watching-jobs.watch-response.missing-data',
+
   EXTERNAL_ACCOUNT_SERVICE_DELETE_NOT_SUCCESS = 'error.external-account-service.delete.not-success',
   EXTERNAL_ACCOUNT_SERVICE_DELETE_IS_PRIMARY = 'error.external-account-service.delete.is-primary',
   EXTERNAL_ACCOUNT_SERVICE_CONNECT_USER_ID_MISMATCH = 'error.external-account-service.connect.user-id-mismatch',

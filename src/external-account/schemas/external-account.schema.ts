@@ -67,6 +67,19 @@ export class ExternalAccount {
 
   @ApiProperty({
     type: 'string',
+  })
+  @Prop()
+  watchId?: string;
+
+  @ApiProperty({
+    type: 'string',
+    format: 'date-time',
+  })
+  @Prop()
+  watchExpirationDate?: Date;
+
+  @ApiProperty({
+    type: 'string',
     format: 'date-time',
   })
   createdAt: Date;

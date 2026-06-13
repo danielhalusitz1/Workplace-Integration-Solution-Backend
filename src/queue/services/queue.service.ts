@@ -46,17 +46,25 @@ export class QueueService {
     externalAccountId,
     step,
     queueName,
+    session,
   }: {
     externalAccountId: string;
     step: BullQueueStep;
     queueName: BullQueueName;
+    session?: ClientSession;
   }) {
-    const existingJob = await this.bullQueueModel.findOne({
-      externalAccountId,
-      step,
-      queueName,
-      status: { $in: [BullQueueJobStatus.PENDING, BullQueueJobStatus.STARTED] },
-    });
+    const existingJob = await this.bullQueueModel.findOne(
+      {
+        externalAccountId,
+        step,
+        queueName,
+        status: {
+          $in: [BullQueueJobStatus.PENDING, BullQueueJobStatus.STARTED],
+        },
+      },
+      null,
+      { session },
+    );
 
     if (existingJob) {
       this.logger.warn(
@@ -64,13 +72,20 @@ export class QueueService {
       );
       return;
     }
-    return await this.bullQueueModel.create({
-      externalAccountId,
-      step,
-      queueName,
-      status: BullQueueJobStatus.PENDING,
-      jobId: this.getJobId({ externalAccountId, step, queueName }),
-    });
+    return (
+      await this.bullQueueModel.create(
+        [
+          {
+            externalAccountId,
+            step,
+            queueName,
+            status: BullQueueJobStatus.PENDING,
+            jobId: this.getJobId({ externalAccountId, step, queueName }),
+          },
+        ],
+        { session },
+      )
+    )[0];
   }
 
   async startOrRestartJob({

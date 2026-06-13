@@ -5,7 +5,13 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
-import { Model, QueryFilter, QueryOptions } from 'mongoose';
+import {
+  ClientSession,
+  Model,
+  QueryFilter,
+  QueryOptions,
+  Types,
+} from 'mongoose';
 import { ErrorTypes } from 'src/enums/error-types.enum';
 import { MongodbTransactionService } from 'src/mongodb-transaction/mongodb-transaction.service';
 import { BullQueueName } from 'src/queue/enums/bull-queue-name.enum';
@@ -187,18 +193,21 @@ export class ExternalAccountService {
             externalAccountId: newExternalAccount._id.toString(),
             step: BullQueueStep.DAYS_3,
             queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+            session,
           });
 
           await this.queueService.appointJob({
             externalAccountId: newExternalAccount._id.toString(),
             step: BullQueueStep.DAYS_30,
             queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+            session,
           });
 
           await this.queueService.appointJob({
             externalAccountId: newExternalAccount._id.toString(),
             step: BullQueueStep.DAYS_90,
             queueName: BullQueueName.EMAIL_GOOGLE_BACKFILL,
+            session,
           });
           break;
         case ExternalAccountType.MICROSOFT:
@@ -267,6 +276,24 @@ export class ExternalAccountService {
     });
 
     return externalAccount;
+  }
+
+  async updateWatch({
+    externalAccountId,
+    watchId,
+    watchExpirationDate,
+    session,
+  }: {
+    externalAccountId: string;
+    watchId: string;
+    watchExpirationDate: Date;
+    session?: ClientSession;
+  }) {
+    return this.externalAccountModel.updateOne(
+      { _id: new Types.ObjectId(externalAccountId) },
+      { watchId, watchExpirationDate },
+      { session },
+    );
   }
 
   async findOneByFilters(
